@@ -1,28 +1,120 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom'; // 1. Import useNavigate
+import { Link, useNavigate } from 'react-router-dom';
 
 const Cart = () => {
-  const navigate = useNavigate(); // 2. Khởi tạo hook điều hướng
+  const navigate = useNavigate();
   const [cartItems, setCartItems] = useState([]);
+  const [loading, setLoading] = useState(false);
+  
+  // State cho Voucher
+  const [voucherCode, setVoucherCode] = useState('');
+  const [discountPercent, setDiscountPercent] = useState(0); // % giảm giá
 
-  // --- LOGIC 1: LẤY DỮ LIỆU KHI VÀO TRANG ---
-  useEffect(() => {
-    const savedCart = JSON.parse(localStorage.getItem('cart')) || [];
-    setCartItems(savedCart);
-  }, []);
+  const user = JSON.parse(localStorage.getItem('user'));
 
-  // --- LOGIC 2: TÍNH TỔNG TIỀN ---
-  const totalAmount = cartItems.reduce((total, item) => total + (item.price * item.quantity), 0);
-
-  // --- LOGIC 3: XÓA SẢN PHẨM ---
-  const removeItem = (id) => {
-    const newCart = cartItems.filter(item => item.id !== id);
-    setCartItems(newCart); 
-    localStorage.setItem('cart', JSON.stringify(newCart)); 
-    window.dispatchEvent(new Event("storage")); 
+  // --- LOGIC 1: LẤY DỮ LIỆU GIỎ HÀNG ---
+  const fetchCart = () => {
+    if (user) {
+      // TRƯỜNG HỢP 1: ĐÃ ĐĂNG NHẬP -> GỌI API KÈM COOKIE
+      setLoading(true);
+      fetch(`http://localhost:5000/api/cart/${user.id}`, { 
+          credentials: 'include' // QUAN TRỌNG: Gửi cookie đi
+      })
+        .then(res => res.json())
+        .then(data => {
+          const formattedCart = data.map(item => ({
+            id: item.product_id, 
+            name: item.name,
+            price: item.price,
+            img: item.img,
+            quantity: item.quantity
+          }));
+          setCartItems(formattedCart);
+          setLoading(false);
+        })
+        .catch(err => {
+          console.error("Lỗi tải giỏ hàng:", err);
+          setLoading(false);
+        });
+    } else {
+      // TRƯỜNG HỢP 2: KHÁCH VÃNG LAI -> LOCALSTORAGE
+      const savedCart = JSON.parse(localStorage.getItem('cart')) || [];
+      setCartItems(savedCart);
+    }
   };
 
-  // Nếu giỏ hàng trống
+  useEffect(() => {
+    fetchCart();
+  }, []);
+
+  // --- LOGIC 2: XÓA SẢN PHẨM ---
+  const removeItem = (productId) => {
+    if (user) {
+      // Xóa trên Server
+      fetch(`http://localhost:5000/api/cart/remove/${user.id}/${productId}`, {
+        method: 'DELETE',
+        credentials: 'include' // QUAN TRỌNG
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          setCartItems(cartItems.filter(item => item.id !== productId));
+          window.dispatchEvent(new Event("storage")); 
+        }
+      });
+    } else {
+      // Xóa trên LocalStorage
+      const newCart = cartItems.filter(item => item.id !== productId);
+      setCartItems(newCart); 
+      localStorage.setItem('cart', JSON.stringify(newCart)); 
+      window.dispatchEvent(new Event("storage")); 
+    }
+  };
+
+  // --- LOGIC 3: ÁP DỤNG VOUCHER ---
+  const handleApplyVoucher = async () => {
+      if (!voucherCode) return alert("Vui lòng nhập mã!");
+      
+      try {
+          const res = await fetch('http://localhost:5000/api/voucher/apply', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ code: voucherCode }),
+              credentials: 'include' // QUAN TRỌNG: Để check user sở hữu voucher
+          });
+          const data = await res.json();
+          
+          if (data.success) {
+              setDiscountPercent(data.discount);
+              alert(`Thành công! Bạn được giảm ${data.discount}%`);
+          } else {
+              setDiscountPercent(0);
+              alert(data.message);
+          }
+      } catch (err) {
+          alert("Lỗi kết nối khi kiểm tra mã");
+      }
+  };
+
+  // --- LOGIC 4: TÍNH TOÁN TIỀN ---
+  const totalAmount = cartItems.reduce((total, item) => total + (item.price * item.quantity), 0);
+  const discountAmount = totalAmount * (discountPercent / 100);
+  const finalAmount = totalAmount - discountAmount;
+
+  // --- LOGIC 5: THANH TOÁN (Gửi kèm thông tin voucher sang Checkout) ---
+  const handleCheckout = () => {
+      navigate('/checkout', { 
+          state: { 
+              voucherCode, 
+              discountPercent, 
+              finalAmount,
+              items: cartItems 
+          } 
+      });
+  };
+
+  if (loading) return <div className="text-center py-20">Đang tải giỏ hàng...</div>;
+
   if (cartItems.length === 0) {
     return (
       <div className="container mx-auto px-4 py-20 text-center">
@@ -45,28 +137,19 @@ const Cart = () => {
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
             {cartItems.map((item) => (
               <div key={item.id} className="flex items-center p-4 border-b last:border-b-0 hover:bg-gray-50 transition">
-                
-                {/* --- SỬA Ở ĐÂY: Dùng item.img (khớp với server) --- */}
-                {/* Thêm fallback item.image phòng hờ dữ liệu cũ */}
                 <img 
-                    src={item.img || item.image || 'https://via.placeholder.com/150'} 
+                    src={item.img || 'https://via.placeholder.com/150'} 
                     alt={item.name} 
                     className="w-20 h-20 object-cover rounded-lg border border-gray-100" 
                 />
-                
-                {/* Tên & Giá */}
                 <div className="ml-4 flex-1">
                   <h3 className="font-semibold text-gray-800 text-lg">{item.name}</h3>
                   <p className="text-gray-500 text-sm">{Number(item.price).toLocaleString('vi-VN')} đ</p>
                 </div>
-
-                {/* Số lượng */}
                 <div className="text-center mx-4">
                     <span className="block text-xs text-gray-400 mb-1">Số lượng</span>
                     <span className="font-bold text-gray-800 bg-white border px-3 py-1 rounded-md">{item.quantity}</span>
                 </div>
-
-                {/* Nút Xóa */}
                 <button 
                   onClick={() => removeItem(item.id)}
                   className="text-red-400 hover:text-red-600 p-2 hover:bg-red-50 rounded-full transition"
@@ -86,24 +169,56 @@ const Cart = () => {
           <div className="bg-gray-50 p-6 rounded-xl border border-gray-200 sticky top-24">
             <h3 className="text-xl font-bold mb-4 text-gray-800">Tổng Đơn Hàng</h3>
             
+            {/* --- Ô NHẬP VOUCHER MỚI --- */}
+            <div className="mb-6">
+                <label className="text-sm text-gray-600 mb-1 block font-medium">Mã ưu đãi (Nếu có):</label>
+                <div className="flex gap-2">
+                    <input 
+                        type="text" 
+                        value={voucherCode}
+                        onChange={(e) => setVoucherCode(e.target.value.toUpperCase())}
+                        placeholder="VD: X9A2B1"
+                        className="flex-1 p-2 border rounded border-gray-300 uppercase font-mono text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
+                    />
+                    <button 
+                        onClick={handleApplyVoucher}
+                        className="bg-gray-800 text-white px-4 rounded hover:bg-black text-sm transition"
+                    >
+                        Áp dụng
+                    </button>
+                </div>
+                {/* Chỉ hiện dòng này nếu đang dùng LocalStorage */}
+                {!user && <p className="text-xs text-red-500 mt-1">* Vui lòng đăng nhập để sử dụng mã.</p>}
+            </div>
+            {/* --------------------------- */}
+
             <div className="space-y-3 mb-6">
               <div className="flex justify-between text-gray-600">
                 <span>Tạm tính:</span>
                 <span>{totalAmount.toLocaleString('vi-VN')} đ</span>
               </div>
+              
+              {/* Hiển thị dòng giảm giá nếu có */}
+              {discountPercent > 0 && (
+                  <div className="flex justify-between text-green-600 font-bold">
+                    <span>Voucher (-{discountPercent}%):</span>
+                    <span>-{(totalAmount * discountPercent / 100).toLocaleString('vi-VN')} đ</span>
+                  </div>
+              )}
+
               <div className="flex justify-between text-gray-600">
                 <span>Phí vận chuyển:</span>
                 <span className="text-green-600 font-medium">Miễn phí</span>
               </div>
+              
               <div className="border-t pt-3 flex justify-between items-center">
                 <span className="font-bold text-lg text-gray-800">Tổng cộng:</span>
-                <span className="font-bold text-2xl text-green-700">{totalAmount.toLocaleString('vi-VN')} đ</span>
+                <span className="font-bold text-2xl text-green-700">{finalAmount.toLocaleString('vi-VN')} đ</span>
               </div>
             </div>
             
-            {/* --- SỬA Ở ĐÂY: Chuyển hướng sang trang Checkout --- */}
             <button 
-              onClick={() => navigate('/checkout')}
+              onClick={handleCheckout}
               className="w-full bg-green-700 hover:bg-green-800 text-white py-3 rounded-xl font-bold transition shadow-lg shadow-green-700/30 active:scale-95"
             >
               Thanh Toán Ngay

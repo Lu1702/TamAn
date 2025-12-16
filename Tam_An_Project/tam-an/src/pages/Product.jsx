@@ -10,6 +10,7 @@ const Product = () => {
   const [quantity, setQuantity] = useState(1);
   const [loading, setLoading] = useState(true);
 
+  // Lấy danh sách sản phẩm
   useEffect(() => {
     fetch(`http://localhost:5000/api/products/${id}`)
       .then((res) => {
@@ -28,27 +29,59 @@ const Product = () => {
     else if (type === 'increase' && product && quantity < product.stock) setQuantity(quantity + 1);
   };
 
+  // --- SỬA LOGIC THÊM VÀO GIỎ (ĐÃ SỬA LỖI COOKIE) ---
   const handleAddToCart = () => {
     if (!product) return;
-    const cart = JSON.parse(localStorage.getItem('cart')) || [];
-    const existingIndex = cart.findIndex((item) => item.id === product.id);
+    const user = JSON.parse(localStorage.getItem('user'));
 
-    if (existingIndex !== -1) {
-      cart[existingIndex].quantity += quantity;
+    if (user) {
+        // 1. NẾU ĐÃ ĐĂNG NHẬP -> GỌI API KÈM COOKIE
+        fetch('http://localhost:5000/api/cart/add', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include', // <--- QUAN TRỌNG: Gửi Cookie đi
+            body: JSON.stringify({
+                user_id: user.id,
+                product_id: product.id,
+                quantity: quantity
+            })
+        })
+        .then(async (res) => {
+            // Nếu lỗi 401/403 (Hết hạn token)
+            if (res.status === 401 || res.status === 403) {
+                throw new Error("Phiên đăng nhập hết hạn, vui lòng đăng nhập lại.");
+            }
+            return res.json();
+        })
+        .then(data => {
+            if (data && data.success) {
+                alert(`Đã thêm ${quantity} hộp "${product.name}" vào giỏ hàng (Server)!`);
+                window.dispatchEvent(new Event("storage")); // Báo header cập nhật
+            }
+        })
+        .catch(err => alert(err.message));
+
     } else {
-      cart.push({
-        id: product.id,
-        name: product.name,
-        price: product.price,
-        // --- SỬA Ở ĐÂY: Lưu key là img ---
-        img: product.img, 
-        quantity: quantity
-      });
-    }
+        // 2. NẾU CHƯA ĐĂNG NHẬP -> DÙNG LOCALSTORAGE
+        const cart = JSON.parse(localStorage.getItem('cart')) || [];
+        const existingIndex = cart.findIndex((item) => item.id === product.id);
 
-    localStorage.setItem('cart', JSON.stringify(cart));
-    window.dispatchEvent(new Event("storage"));
-    alert(`Đã thêm ${quantity} hộp "${product.name}" vào giỏ hàng!`);
+        if (existingIndex !== -1) {
+            cart[existingIndex].quantity += quantity;
+        } else {
+            cart.push({
+                id: product.id,
+                name: product.name,
+                price: product.price,
+                img: product.img, 
+                quantity: quantity
+            });
+        }
+
+        localStorage.setItem('cart', JSON.stringify(cart));
+        window.dispatchEvent(new Event("storage"));
+        alert(`Đã thêm ${quantity} hộp "${product.name}" vào giỏ hàng!`);
+    }
   };
 
   if (loading) return <div className="text-center py-20">Đang tải...</div>;
@@ -63,7 +96,6 @@ const Product = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-10 lg:gap-16">
         <div className="w-full bg-gray-50 rounded-2xl p-4 border border-gray-100">
-          {/* --- SỬA Ở ĐÂY: Hiển thị ảnh dùng product.img --- */}
           <img 
             src={product.img} 
             alt={product.name} 

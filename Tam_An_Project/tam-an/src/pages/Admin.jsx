@@ -1,3 +1,4 @@
+// src/pages/Admin.jsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -5,13 +6,18 @@ const Admin = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('products');
 
-  // --- LOGIC SẢN PHẨM ---
+  // --- 1. LOGIC SẢN PHẨM ---
   const [products, setProducts] = useState([]);
   const [productForm, setProductForm] = useState({ name: '', price: '', desc: '', category: '', stock: '' });
   const [imageFile, setImageFile] = useState(null);
 
-  // --- LOGIC ĐƠN HÀNG ---
+  // --- 2. LOGIC ĐƠN HÀNG ---
   const [orders, setOrders] = useState([]);
+
+  // --- 3. LOGIC KHUYẾN MÃI (VÒNG QUAY) ---
+  const [promotions, setPromotions] = useState([]);
+  // Thêm trường 'percentage' để chỉnh tỷ lệ
+  const [promoForm, setPromoForm] = useState({ label: '', value: '', color: '#ff0000', percentage: '' });
 
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem('user'));
@@ -22,8 +28,10 @@ const Admin = () => {
     }
     fetchProducts();
     fetchOrders();
+    fetchPromotions();
   }, [navigate]);
 
+  // --- CÁC HÀM FETCH DỮ LIỆU (THÊM CREDENTIALS ĐỂ GỬI COOKIE) ---
   const fetchProducts = async () => {
     try {
         const res = await fetch('http://localhost:5000/api/products');
@@ -33,12 +41,20 @@ const Admin = () => {
 
   const fetchOrders = async () => {
     try {
-        const res = await fetch('http://localhost:5000/api/orders');
-        setOrders(await res.json());
+        // Cần credentials vì API orders yêu cầu admin
+        const res = await fetch('http://localhost:5000/api/orders', { credentials: 'include' });
+        if (res.ok) setOrders(await res.json());
     } catch (error) { console.error(error); }
   };
 
-  // Logic xử lý Form (Giữ nguyên)
+  const fetchPromotions = async () => {
+    try {
+        const res = await fetch('http://localhost:5000/api/promotions');
+        setPromotions(await res.json());
+    } catch (error) { console.error(error); }
+  };
+
+  // --- HANDLERS SẢN PHẨM ---
   const handleProductChange = (e) => setProductForm({ ...productForm, [e.target.name]: e.target.value });
   const handleFileChange = (e) => setImageFile(e.target.files[0]);
 
@@ -48,7 +64,12 @@ const Admin = () => {
     Object.keys(productForm).forEach(key => data.append(key, productForm[key]));
     if (imageFile) data.append('image', imageFile);
 
-    const res = await fetch('http://localhost:5000/api/products', { method: 'POST', body: data });
+    // Thêm credentials: 'include'
+    const res = await fetch('http://localhost:5000/api/products', { 
+        method: 'POST', 
+        body: data,
+        credentials: 'include' 
+    });
     if (res.ok) {
         alert("Thêm món thành công!");
         fetchProducts();
@@ -59,22 +80,55 @@ const Admin = () => {
 
   const handleDeleteProduct = async (id) => {
     if (window.confirm("Xóa nhé?")) {
-        await fetch(`http://localhost:5000/api/products/${id}`, { method: 'DELETE' });
+        await fetch(`http://localhost:5000/api/products/${id}`, { 
+            method: 'DELETE',
+            credentials: 'include'
+        });
         fetchProducts();
     }
   };
 
+  // --- HANDLERS KHUYẾN MÃI (UPDATED) ---
+  const handlePromoChange = (e) => setPromoForm({ ...promoForm, [e.target.name]: e.target.value });
+  
+  const handleAddPromo = async (e) => {
+    e.preventDefault();
+    try {
+        const res = await fetch('http://localhost:5000/api/promotions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include', // Quan trọng
+            body: JSON.stringify(promoForm)
+        });
+        if (res.ok) {
+            alert("Thêm ô phần thưởng thành công!");
+            fetchPromotions();
+            // Reset form
+            setPromoForm({ label: '', value: '', color: '#ff0000', percentage: '' });
+        }
+    } catch (error) { console.error(error); }
+  };
+
+  const handleDeletePromo = async (id) => {
+    if (window.confirm("Xóa ô này khỏi vòng quay?")) {
+        try {
+            await fetch(`http://localhost:5000/api/promotions/${id}`, { 
+                method: 'DELETE',
+                credentials: 'include'
+            });
+            fetchPromotions();
+        } catch (error) { console.error(error); }
+    }
+  };
+
   return (
-    // THAY ĐỔI 1: Thêm background image vào container ngoài cùng
     <div 
       className="min-h-screen flex bg-cover bg-center relative"
       style={{ backgroundImage: "url('https://images.unsplash.com/photo-1597481499750-3e6b22637e12?q=80&w=2070')" }}
     >
-      {/* THAY ĐỔI 2: Lớp phủ màu trắng 90% để làm mờ ảnh nền, giúp chữ dễ đọc */}
       <div className="absolute inset-0 bg-white/90 z-0"></div>
 
       {/* --- SIDEBAR --- */}
-      {/* Thêm z-10 để nổi lên trên lớp phủ */}
       <div className="w-64 bg-green-900 text-white flex flex-col fixed h-full z-10 shadow-2xl">
         <div className="p-6 text-2xl font-bold font-serif border-b border-green-800 flex items-center gap-2">
             <span>🛡️ Admin</span>
@@ -92,6 +146,12 @@ const Admin = () => {
           >
             🛒 <span>Đơn Hàng</span>
           </button>
+          <button 
+            onClick={() => setActiveTab('promotions')}
+            className={`w-full text-left py-3 px-4 rounded transition flex items-center gap-3 ${activeTab === 'promotions' ? 'bg-green-700 font-bold shadow-lg' : 'hover:bg-green-800'}`}
+          >
+            🎡 <span>Vòng Quay</span>
+          </button>
         </nav>
         <div className="p-4 border-t border-green-800">
             <button onClick={() => navigate('/')} className="text-gray-300 hover:text-white text-sm flex items-center gap-2">
@@ -101,7 +161,6 @@ const Admin = () => {
       </div>
 
       {/* --- MAIN CONTENT --- */}
-      {/* Thêm relative và z-10 để nội dung nổi lên trên lớp phủ */}
       <div className="flex-1 ml-64 p-8 relative z-10">
         
         {/* VIEW 1: QUẢN LÝ SẢN PHẨM */}
@@ -220,6 +279,95 @@ const Admin = () => {
                 </tbody>
               </table>
             </div>
+          </div>
+        )}
+
+        {/* VIEW 3: CÀI ĐẶT VÒNG QUAY (ĐÃ THÊM LOGIC TỶ LỆ) */}
+        {activeTab === 'promotions' && (
+          <div className="animate-fade-in">
+            <h1 className="text-3xl font-bold mb-6 text-green-800 font-serif border-b-2 border-green-200 pb-2 inline-block">Cài Đặt Vòng Quay</h1>
+            
+            {/* Form thêm ô vòng quay */}
+            <div className="bg-white/80 backdrop-blur-sm p-6 rounded-xl shadow-lg border border-green-100 mb-8 max-w-3xl">
+              <h3 className="text-lg font-bold mb-4 text-green-900">Thêm Ô Quà Tặng & Cấu Hình Tỷ Lệ</h3>
+              <form onSubmit={handleAddPromo} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                
+                {/* Tên hiển thị */}
+                <input 
+                    className="p-3 border rounded-lg focus:ring-2 focus:ring-green-500 outline-none" 
+                    name="label" 
+                    placeholder="Tên hiển thị (VD: Giảm 20%)" 
+                    value={promoForm.label} 
+                    onChange={handlePromoChange} 
+                    required 
+                />
+                
+                {/* Giá trị giảm */}
+                <input 
+                    className="p-3 border rounded-lg focus:ring-2 focus:ring-green-500 outline-none" 
+                    name="value" 
+                    type="number" 
+                    placeholder="Giá trị giảm (VD: 20)" 
+                    value={promoForm.value} 
+                    onChange={handlePromoChange} 
+                    required 
+                />
+                
+                {/* --- Ô NHẬP TỶ LỆ GIAN LẬN --- */}
+                <div className="relative">
+                    <input 
+                        className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-green-500 outline-none" 
+                        name="percentage" 
+                        type="number" 
+                        step="0.0001" 
+                        placeholder="Tỷ lệ trúng (VD: 99.9)" 
+                        value={promoForm.percentage} 
+                        onChange={handlePromoChange} 
+                        required 
+                    />
+                    <span className="absolute right-3 top-3 text-gray-400 font-bold">%</span>
+                </div>
+
+                {/* Chọn màu */}
+                <div className="flex items-center gap-2 border p-2 rounded-lg bg-white">
+                    <span className="text-gray-700 font-medium">Màu ô:</span>
+                    <input 
+                        type="color" 
+                        name="color" 
+                        value={promoForm.color} 
+                        onChange={handlePromoChange} 
+                        className="h-8 w-full cursor-pointer rounded border-none"
+                    />
+                </div>
+
+                <button type="submit" className="md:col-span-2 bg-purple-600 text-white py-3 rounded-lg hover:bg-purple-700 font-bold shadow-md transition">
+                    + Thêm Ô Này Vào Vòng Quay
+                </button>
+              </form>
+              <p className="text-xs text-gray-500 mt-2 italic">* Mẹo: Tổng tỷ lệ các ô nên bằng 100%. Ô nào tỷ lệ càng cao thì User càng dễ quay trúng.</p>
+            </div>
+
+            {/* Danh sách các ô */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {promotions.map(promo => (
+                    <div key={promo.id} className="relative bg-white p-4 rounded-xl shadow-md border-l-8 flex flex-col gap-1" style={{ borderLeftColor: promo.color }}>
+                        <div className="flex justify-between items-start">
+                            <h4 className="font-bold text-lg text-gray-800">{promo.label}</h4>
+                            <button onClick={() => handleDeletePromo(promo.id)} className="text-red-500 hover:text-red-700 font-bold text-xl bg-red-50 w-8 h-8 flex items-center justify-center rounded-full">
+                                ×
+                            </button>
+                        </div>
+                        <p className="text-gray-500 text-sm">Giá trị: {promo.value}%</p>
+                        
+                        {/* Hiển thị tỷ lệ */}
+                        <div className="mt-2 text-xs font-bold text-purple-700 bg-purple-100 px-2 py-1 rounded w-fit">
+                            Tỷ lệ trúng: {promo.percentage}%
+                        </div>
+                    </div>
+                ))}
+            </div>
+            
+            {promotions.length === 0 && <p className="text-gray-500 mt-4">Chưa có ô quà nào. Hãy thêm ít nhất 2 ô để vòng quay hoạt động.</p>}
           </div>
         )}
 

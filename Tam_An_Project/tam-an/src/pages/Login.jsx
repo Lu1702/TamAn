@@ -5,6 +5,7 @@ const Login = () => {
   const navigate = useNavigate();
   const [isLogin, setIsLogin] = useState(true); // Toggle Login/Register
   const [error, setError] = useState(''); // State để hiển thị lỗi
+  const [loading, setLoading] = useState(false); // 1. MỚI: State loading
 
   // State lưu dữ liệu form
   const [formData, setFormData] = useState({
@@ -25,6 +26,7 @@ const Login = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(''); // Reset lỗi cũ
+    setLoading(true); // Bắt đầu loading
 
     // Xác định API cần gọi (Login hoặc Register)
     const endpoint = isLogin ? '/api/login' : '/api/register';
@@ -33,51 +35,82 @@ const Login = () => {
       const res = await fetch(`http://localhost:5000${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        // 2. QUAN TRỌNG: Dòng này bắt buộc để nhận/gửi Cookie HttpOnly
+        credentials: 'include', 
         body: JSON.stringify(formData)
       });
 
       const data = await res.json();
 
       if (res.ok) {
-        // --- THÀNH CÔNG ---
+        // --- 1. ĐĂNG NHẬP / ĐĂNG KÝ THÀNH CÔNG ---
         
-        // Lưu thông tin user thật từ server trả về
+        // Lưu thông tin user (Profile) vào LocalStorage
+        // KHÔNG CẦN LƯU TOKEN VÀO ĐÂY NỮA (Nó đã nằm an toàn trong Cookie)
         localStorage.setItem('user', JSON.stringify(data.user));
+
+        // --- 2. LOGIC GỘP GIỎ HÀNG (MERGE CART) ---
+        const localCart = JSON.parse(localStorage.getItem('cart')) || [];
+
+        if (localCart.length > 0) {
+            try {
+                // Dùng Promise.all để gửi nhiều sản phẩm lên server cùng lúc
+                await Promise.all(localCart.map(item => {
+                    return fetch('http://localhost:5000/api/cart/add', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        // Cũng cần credentials ở đây để Server biết là User nào đang gửi
+                        credentials: 'include', 
+                        body: JSON.stringify({
+                            user_id: data.user.id,    
+                            product_id: item.id,      
+                            quantity: item.quantity    
+                        })
+                    });
+                }));
+
+                // Sau khi đẩy hết lên Server thành công thì xóa LocalStorage cho sạch
+                localStorage.removeItem('cart');
+                console.log("Đã đồng bộ giỏ hàng lên server!");
+            } catch (err) {
+                console.error("Lỗi khi đồng bộ giỏ hàng:", err);
+            }
+        }
+        // ----------------------------------------------------
         
-        // Bắn tín hiệu để Navbar cập nhật
+        // 3. Bắn tín hiệu để Navbar cập nhật số lượng mới từ Server
         window.dispatchEvent(new Event("storage"));
 
         alert(data.message);
+        
+        // 4. Điều hướng
         if (data.user.role === 'admin') {
-            navigate('/admin'); // Nếu là admin thì vào thẳng trang quản lý
+            navigate('/admin'); 
         } else {
-            navigate('/');      // Khách thường thì về trang chủ
+            navigate('/');      
         }
+
       } else {
-        // --- THẤT BẠI (Sai pass, trùng email...) ---
+        // --- THẤT BẠI ---
         setError(data.message);
       }
 
     } catch (err) {
       setError("Lỗi kết nối đến Server! Hãy kiểm tra backend.");
+    } finally {
+        setLoading(false); // Tắt loading dù thành công hay thất bại
     }
   };
 
   return (
-    // --- THAY ĐỔI TẠI ĐÂY ---
-    // 1. Thêm style background-image
-    // 2. Thêm các class bg-cover, bg-center để đảm bảo bao phủ
-    // 3. Thêm relative để chứa lớp phủ mờ
     <div 
       className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-cover bg-center relative"
       style={{ backgroundImage: "url('https://images.unsplash.com/photo-1597481499750-3e6b22637e12?q=80&w=2070')" }}
     >
       {/* --- LỚP PHỦ MỜ 30% --- */}
-      {/* bg-black/30 tương đương opacity 0.3 */}
       <div className="absolute inset-0 bg-black/30"></div>
 
       {/* Container chính của form */}
-      {/* Thêm relative và z-10 để nổi lên trên lớp phủ */}
       <div className="max-w-4xl w-full bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col md:flex-row relative z-10">
         
         {/* Cột Trái: Hình ảnh */}
@@ -156,9 +189,14 @@ const Login = () => {
 
             <button 
               type="submit" 
-              className="w-full bg-green-700 hover:bg-green-800 text-white font-bold py-3 rounded-xl transition shadow-lg shadow-green-700/30"
+              disabled={loading} // Disable khi đang loading
+              className={`w-full text-white font-bold py-3 rounded-xl transition shadow-lg ${
+                loading 
+                ? 'bg-gray-400 cursor-not-allowed' 
+                : 'bg-green-700 hover:bg-green-800 shadow-green-700/30'
+              }`}
             >
-              {isLogin ? "Đăng Nhập" : "Đăng Ký Ngay"}
+              {loading ? "Đang xử lý..." : (isLogin ? "Đăng Nhập" : "Đăng Ký Ngay")}
             </button>
           </form>
 
@@ -168,7 +206,7 @@ const Login = () => {
               <button 
                 onClick={() => {
                   setIsLogin(!isLogin);
-                  setError(''); // Xóa lỗi khi chuyển tab
+                  setError(''); 
                 }} 
                 className="text-green-700 font-bold hover:underline ml-1"
               >
