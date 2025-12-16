@@ -596,24 +596,7 @@ app.delete('/api/promotions/:id', verifyAdmin, async (req, res) => {
         res.json({ success: true });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
-app.put('/api/orderdone', verifyAdmin, async (req, res) => {
-    try {
-        const { id } = req.body; // Lấy ID đơn hàng từ URL
 
-        const request = new sql.Request();
-        request.input('id', id);
-        await request.query`
-            UPDATE Orders 
-            SET payment_status = 'PAID' 
-            WHERE id = @id
-        `;
-
-        res.json({ success: true, message: "Đã cập nhật trạng thái đơn hàng thành công!" });
-    } catch (err) {
-        console.error("Lỗi cập nhật đơn hàng:", err);
-        res.status(500).json({ error: err.message });
-    }
-});
 app.post('/api/orders', async (req, res) => {
     try {
         const { user_id, customer_name, phone, address, note, total_price, items, voucher_code } = req.body;
@@ -655,7 +638,24 @@ app.get('/api/history', verifyToken, async (req, res) => {
         res.json(result.recordset);
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
+app.put('/api/orderdone', verifyAdmin, async (req, res) => {
+    try {
+        const { id } = req.body; // Lấy ID đơn hàng từ URL
 
+        const request = new sql.Request();
+        request.input('id', id);
+        await request.query`
+            UPDATE Orders 
+            SET payment_status = 'PAID' 
+            WHERE id = @id
+        `;
+
+        res.json({ success: true, message: "Đã cập nhật trạng thái đơn hàng thành công!" });
+    } catch (err) {
+        console.error("Lỗi cập nhật đơn hàng:", err);
+        res.status(500).json({ error: err.message });
+    }
+});
 app.listen(PORT, () => {
     console.log(`Server đang chạy tại http://localhost:${PORT}`);
 });

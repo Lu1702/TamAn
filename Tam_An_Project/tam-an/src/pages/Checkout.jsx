@@ -208,7 +208,7 @@ const Checkout = () => {
                         />
                         <div className="flex items-center gap-2">
                             <span className="font-medium">Thanh toán qua Ví VNPAY</span>
-                            <img src="https://vnpay.vn/s1/statics.vnpay.vn/2023/6/0oxhzjmxbksr1686814746013.png" alt="VNPAY" className="h-5" />
+                            <img src="https://vinadesign.vn/uploads/images/2023/05/vnpay-logo-vinadesign-25-12-57-55.jpg" alt="VNPAY" className="h-5" />
                         </div>
                     </label>
                 </div>
