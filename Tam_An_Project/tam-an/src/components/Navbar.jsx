@@ -104,8 +104,9 @@ const Navbar = () => {
           <div className="hidden lg:flex space-x-8 text-gray-700 font-medium">
             <NavLink to="/" className={({isActive}) => isActive ? "text-green-700" : "hover:text-green-600"}>Trang Chủ</NavLink>
             <NavLink to="/shop" className={({isActive}) => isActive ? "text-green-700" : "hover:text-green-600"}>Cửa Hàng</NavLink>
-            <NavLink to="/promotions" className={({isActive}) => isActive ? "text-red-600 font-bold" : "hover:text-red-500 font-bold"}>Ưu Đãi</NavLink>
             <NavLink to="/about" className={({isActive}) => isActive ? "text-green-700" : "hover:text-green-600"}>Về Chúng Tôi</NavLink>
+            <NavLink to="/delivery" className={({isActive}) => isActive ? "text-green-700" : "hover:text-green-600"}>Điều khoản giao hàng</NavLink>
+            <NavLink to="/promotions" className={({isActive}) => isActive ? "text-red-600 font-bold" : "hover:text-red-500 font-bold"}>Ưu Đãi</NavLink>
             {user && user.role === 'admin' && (
                <NavLink to="/admin" className={({isActive}) => isActive ? "text-red-600 font-bold" : "hover:text-red-500 font-bold"}>Quản Lý</NavLink>
             )}

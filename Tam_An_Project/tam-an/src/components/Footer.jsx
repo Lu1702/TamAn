@@ -52,6 +52,9 @@ const Footer = () => {
                     <Link to="/about" className="text-gray-300 hover:text-green-300 hover:underline transition text-sm">
                         Câu chuyện thương hiệu
                     </Link>
+                    <Link to="/delivery" className="text-gray-300 hover:text-green-300 hover:underline transition text-sm">
+                        Điều khoản giao hàng
+                    </Link>
                 </div>
                 <div className="flex flex-col space-y-2">
                      <h4 className="font-bold text-white mb-1">Khám Phá</h4>
