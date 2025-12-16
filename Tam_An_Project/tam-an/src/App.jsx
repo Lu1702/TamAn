@@ -1,12 +1,14 @@
 // src/App.jsx
 import React from 'react';
-import { Routes, Route, useLocation } from 'react-router-dom'; // 1. Thêm useLocation
-import { AnimatePresence } from 'framer-motion'; // 2. Thêm AnimatePresence
+import { Routes, Route, useLocation } from 'react-router-dom';
+import { AnimatePresence } from 'framer-motion';
 
+// Import Components
 import Navbar from './components/Navbar';
-import AnimatedPage from './components/AnimatedPage'; // 3. Import component hiệu ứng
+import Footer from './components/Footer'; // <--- 1. Import Footer Mới
+import AnimatedPage from './components/AnimatedPage';
 
-// Import các Pages
+// Import Pages
 import Home from './pages/Home';
 import Shop from './pages/Shop';
 import Product from './pages/Product';
@@ -17,25 +19,20 @@ import Admin from './pages/Admin';
 import Profile from './pages/Profile';
 import Checkout from './pages/Checkout';
 import Promotions from './pages/Promotions';
+
 function App() {
-  const location = useLocation(); // 4. Lấy vị trí trang hiện tại để làm Key cho hiệu ứng
+  const location = useLocation();
 
   return (
     <div className="font-sans text-gray-800 min-h-screen flex flex-col">
       
-      {/* Navbar luôn hiển thị ở trên cùng */}
+      {/* Navbar */}
       <Navbar />
 
-      {/* Nội dung thay đổi theo Route */}
+      {/* Nội dung chính (Có hiệu ứng chuyển trang) */}
       <div className="flex-1"> 
-        {/* 5. Bọc Routes bằng AnimatePresence với mode="wait" */}
-        {/* mode="wait" nghĩa là: Trang cũ biến mất hẳn rồi trang mới mới hiện ra */}
         <AnimatePresence mode="wait">
-          
-          {/* 6. Truyền location và key vào Routes để React nhận biết khi nào đổi trang */}
           <Routes location={location} key={location.pathname}>
-            
-            {/* 7. Bọc từng Element bằng <AnimatedPage> */}
             <Route path="/" element={<AnimatedPage><Home /></AnimatedPage>} />
             <Route path="/shop" element={<AnimatedPage><Shop /></AnimatedPage>} />
             <Route path="/product/:id" element={<AnimatedPage><Product /></AnimatedPage>} />
@@ -48,14 +45,12 @@ function App() {
             <Route path="/promotions" element={<AnimatedPage><Promotions /></AnimatedPage>} />
             <Route path="*" element={<div className="text-center py-10">404 - Không tìm thấy trang</div>} />
           </Routes>
-        
         </AnimatePresence>
       </div>
 
-      {/* Footer */}
-      <footer className="bg-tea-dark text-white text-center py-6 mt-auto">
-        <p>&copy; 2025 Tâm An Tiệm trà bán các loại trà ngon vl.</p>
-      </footer>
+      {/* Footer Mới */}
+      <Footer /> {/* <--- 2. Sử dụng Component Footer tại đây */}
+      
     </div>
   );
 }

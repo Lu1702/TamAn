@@ -1,3 +1,4 @@
+// src/pages/Login.jsx
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -5,7 +6,7 @@ const Login = () => {
   const navigate = useNavigate();
   const [isLogin, setIsLogin] = useState(true); // Toggle Login/Register
   const [error, setError] = useState(''); // State để hiển thị lỗi
-  const [loading, setLoading] = useState(false); // 1. MỚI: State loading
+  const [loading, setLoading] = useState(false); // State loading
 
   // State lưu dữ liệu form
   const [formData, setFormData] = useState({
@@ -25,41 +26,32 @@ const Login = () => {
   // Hàm gửi dữ liệu lên Server
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError(''); // Reset lỗi cũ
-    setLoading(true); // Bắt đầu loading
+    setError(''); 
+    setLoading(true);
 
-    // Xác định API cần gọi (Login hoặc Register)
     const endpoint = isLogin ? '/api/login' : '/api/register';
 
     try {
       const res = await fetch(`http://localhost:5000${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        // 2. QUAN TRỌNG: Dòng này bắt buộc để nhận/gửi Cookie HttpOnly
-        credentials: 'include', 
+        credentials: 'include', // QUAN TRỌNG
         body: JSON.stringify(formData)
       });
 
       const data = await res.json();
 
       if (res.ok) {
-        // --- 1. ĐĂNG NHẬP / ĐĂNG KÝ THÀNH CÔNG ---
-        
-        // Lưu thông tin user (Profile) vào LocalStorage
-        // KHÔNG CẦN LƯU TOKEN VÀO ĐÂY NỮA (Nó đã nằm an toàn trong Cookie)
         localStorage.setItem('user', JSON.stringify(data.user));
 
-        // --- 2. LOGIC GỘP GIỎ HÀNG (MERGE CART) ---
+        // Logic gộp giỏ hàng
         const localCart = JSON.parse(localStorage.getItem('cart')) || [];
-
         if (localCart.length > 0) {
             try {
-                // Dùng Promise.all để gửi nhiều sản phẩm lên server cùng lúc
                 await Promise.all(localCart.map(item => {
                     return fetch('http://localhost:5000/api/cart/add', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        // Cũng cần credentials ở đây để Server biết là User nào đang gửi
                         credentials: 'include', 
                         body: JSON.stringify({
                             user_id: data.user.id,    
@@ -68,52 +60,48 @@ const Login = () => {
                         })
                     });
                 }));
-
-                // Sau khi đẩy hết lên Server thành công thì xóa LocalStorage cho sạch
                 localStorage.removeItem('cart');
-                console.log("Đã đồng bộ giỏ hàng lên server!");
             } catch (err) {
                 console.error("Lỗi khi đồng bộ giỏ hàng:", err);
             }
         }
-        // ----------------------------------------------------
         
-        // 3. Bắn tín hiệu để Navbar cập nhật số lượng mới từ Server
         window.dispatchEvent(new Event("storage"));
-
         alert(data.message);
         
-        // 4. Điều hướng
-        if (data.user.role === 'admin') {
-            navigate('/admin'); 
-        } else {
-            navigate('/');      
-        }
+        if (data.user.role === 'admin') navigate('/admin');
+        else navigate('/');
 
       } else {
-        // --- THẤT BẠI ---
         setError(data.message);
       }
 
     } catch (err) {
       setError("Lỗi kết nối đến Server! Hãy kiểm tra backend.");
     } finally {
-        setLoading(false); // Tắt loading dù thành công hay thất bại
+        setLoading(false);
     }
   };
 
   return (
-    <div 
-      className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-cover bg-center relative"
-      style={{ backgroundImage: "url('https://images.unsplash.com/photo-1597481499750-3e6b22637e12?q=80&w=2070')" }}
-    >
-      {/* --- LỚP PHỦ MỜ 30% --- */}
-      <div className="absolute inset-0 bg-black/30"></div>
+    <div className="relative min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-gray-50 overflow-hidden">
+      
+      {/* --- LỚP BACKGROUND (ĐÃ BỎ OPACITY) --- */}
+      <div 
+        className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat pointer-events-none"
+        style={{ 
+            backgroundImage: "url('/images/background.jpg')",
+            // Đã xóa dòng opacity ở đây để ảnh rõ nét
+        }}
+      ></div>
 
-      {/* Container chính của form */}
-      <div className="max-w-4xl w-full bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col md:flex-row relative z-10">
+      {/* Lớp phủ đen nhẹ để form nổi bật hơn (nếu muốn bỏ nốt cái này thì xóa dòng dưới đi) */}
+      <div className="absolute inset-0 z-0 bg-black/10 pointer-events-none"></div>
+
+      {/* Nội dung chính */}
+      <div className="relative z-10 max-w-4xl w-full bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col md:flex-row">
         
-        {/* Cột Trái: Hình ảnh */}
+        {/* Cột Trái: Hình ảnh minh họa */}
         <div className="w-full md:w-1/2 bg-green-800 text-white p-10 flex flex-col justify-center relative overflow-hidden">
           <div className="absolute inset-0 bg-black opacity-20 z-10"></div>
           <img 
@@ -133,64 +121,62 @@ const Login = () => {
 
         {/* Cột Phải: Form */}
         <div className="w-full md:w-1/2 p-10">
-          <h2 className="text-3xl font-bold text-gray-800 mb-2 text-center">
+          <h2 className="text-3xl font-bold text-gray-800 mb-6 text-center">
             {isLogin ? "Đăng Nhập" : "Tạo Tài Khoản"}
           </h2>
           
-          {/* Hiển thị lỗi nếu có */}
           {error && (
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded mb-4 text-center">
+            <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg mb-6 text-center text-sm font-medium">
               {error}
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Field Tên chỉ hiện khi Đăng ký */}
             {!isLogin && (
               <div>
-                <label className="block text-sm font-medium text-gray-700">Họ và tên</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Họ và tên</label>
                 <input 
                   type="text" 
                   name="name" 
                   value={formData.name}
                   onChange={handleChange}
                   required 
-                  className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500" 
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition" 
                   placeholder="Nguyễn Văn A" 
                 />
               </div>
             )}
             
             <div>
-              <label className="block text-sm font-medium text-gray-700">Email</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
               <input 
                 type="email" 
                 name="email"
                 value={formData.email}
                 onChange={handleChange}
                 required 
-                className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500" 
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition" 
                 placeholder="admin@gmail.com" 
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700">Mật khẩu</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Mật khẩu</label>
               <input 
                 type="password" 
                 name="password"
                 value={formData.password}
                 onChange={handleChange}
                 required 
-                className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500" 
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition" 
                 placeholder="••••••••" 
               />
             </div>
 
             <button 
               type="submit" 
-              disabled={loading} // Disable khi đang loading
-              className={`w-full text-white font-bold py-3 rounded-xl transition shadow-lg ${
+              disabled={loading} 
+              className={`w-full text-white font-bold py-3 rounded-xl transition shadow-lg transform active:scale-95 ${
                 loading 
                 ? 'bg-gray-400 cursor-not-allowed' 
                 : 'bg-green-700 hover:bg-green-800 shadow-green-700/30'
@@ -200,15 +186,15 @@ const Login = () => {
             </button>
           </form>
 
-          <div className="mt-6 text-center">
-            <p className="text-gray-600">
+          <div className="mt-8 text-center border-t pt-6">
+            <p className="text-gray-600 text-sm">
               {isLogin ? "Chưa có tài khoản? " : "Đã có tài khoản? "}
               <button 
                 onClick={() => {
                   setIsLogin(!isLogin);
                   setError(''); 
                 }} 
-                className="text-green-700 font-bold hover:underline ml-1"
+                className="text-green-700 font-bold hover:underline ml-1 transition"
               >
                 {isLogin ? "Đăng ký ngay" : "Đăng nhập"}
               </button>
