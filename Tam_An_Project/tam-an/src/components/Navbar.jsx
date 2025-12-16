@@ -9,7 +9,7 @@ const Navbar = () => {
   const [totalItems, setTotalItems] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
 
-  const isAdminPage = location.pathname === '/admin';
+  const isAdminPage = location.pathname.startsWith('/admin');
 
   // --- 1. KIỂM TRA LOGIN ---
   const checkLogin = () => {
@@ -17,37 +17,35 @@ const Navbar = () => {
     if (storedUser) {
         const parsedUser = JSON.parse(storedUser);
         setUser(parsedUser);
-        return parsedUser; // Trả về user để dùng ngay
+        return parsedUser;
     } else {
         setUser(null);
         return null;
     }
   };
 
-  // --- 2. HÀM CẬP NHẬT SỐ LƯỢNG (QUAN TRỌNG: ĐÃ SỬA) ---
+  // --- 2. HÀM CẬP NHẬT SỐ LƯỢNG ---
   const updateCartCount = () => {
     const currentUser = JSON.parse(localStorage.getItem('user'));
 
     if (currentUser) {
-        // TRƯỜNG HỢP A: ĐÃ ĐĂNG NHẬP -> GỌI API ĐỂ ĐẾM
+        // ĐÃ ĐĂNG NHẬP -> GỌI API
         fetch(`http://localhost:5000/api/cart/${currentUser.id}`, {
-            credentials: 'include' // Gửi Cookie để xác thực
+            credentials: 'include'
         })
         .then(res => {
             if (res.ok) return res.json();
             throw new Error('Lỗi fetch cart');
         })
         .then(data => {
-            // Cộng tổng số lượng (quantity) của các món trong DB
             const total = data.reduce((acc, item) => acc + item.quantity, 0);
             setTotalItems(total);
         })
         .catch(err => {
             console.error("Không lấy được số lượng giỏ hàng:", err);
-            // Nếu lỗi (vd hết hạn token), có thể set về 0 hoặc giữ nguyên
         });
     } else {
-        // TRƯỜNG HỢP B: CHƯA ĐĂNG NHẬP -> ĐỌC LOCALSTORAGE
+        // CHƯA ĐĂNG NHẬP -> LOCALSTORAGE
         const cart = JSON.parse(localStorage.getItem('cart')) || [];
         const total = cart.reduce((acc, item) => acc + item.quantity, 0);
         setTotalItems(total);
@@ -68,7 +66,6 @@ const Navbar = () => {
     checkLogin();
     updateCartCount();
 
-    // Lắng nghe sự kiện thay đổi giỏ hàng (từ Shop/Product bắn ra)
     const handleStorageChange = () => {
       checkLogin();
       updateCartCount();
@@ -78,15 +75,15 @@ const Navbar = () => {
     return () => {
       window.removeEventListener('storage', handleStorageChange);
     };
-  }, []); // Chạy 1 lần khi mount và lắng nghe sự kiện
+  }, []);
 
   const handleLogout = () => {
-    // Gọi API Logout để xóa Cookie
     fetch('http://localhost:5000/api/logout', { method: 'POST', credentials: 'include' });
     
     localStorage.removeItem('user');
+    localStorage.removeItem('token'); // Xóa cả token nếu có lưu
     setUser(null);
-    setTotalItems(0); // Reset số lượng về 0
+    setTotalItems(0);
     navigate('/login');
   };
 
@@ -99,16 +96,17 @@ const Navbar = () => {
            <span className="font-serif">🌿 Tâm An {isAdminPage && <span className="text-sm bg-red-100 text-red-600 px-2 py-0.5 rounded ml-2">ADMIN</span>}</span>
         </Link>
 
-        {/* --- MENU CHÍNH --- */}
+        {/* --- MENU CHÍNH (ĐÃ SỬA) --- */}
         {!isAdminPage && (
-          <div className="hidden lg:flex space-x-8 text-gray-700 font-medium">
+          <div className="hidden lg:flex space-x-8 text-gray-700 font-medium items-center">
             <NavLink to="/" className={({isActive}) => isActive ? "text-green-700" : "hover:text-green-600"}>Trang Chủ</NavLink>
             <NavLink to="/shop" className={({isActive}) => isActive ? "text-green-700" : "hover:text-green-600"}>Cửa Hàng</NavLink>
-            <NavLink to="/about" className={({isActive}) => isActive ? "text-green-700" : "hover:text-green-600"}>Về Chúng Tôi</NavLink>
-            <NavLink to="/delivery" className={({isActive}) => isActive ? "text-green-700" : "hover:text-green-600"}>Điều khoản giao hàng</NavLink>
             <NavLink to="/promotions" className={({isActive}) => isActive ? "text-red-600 font-bold" : "hover:text-red-500 font-bold"}>Ưu Đãi</NavLink>
+            {/* Link Admin */}
             {user && user.role === 'admin' && (
-               <NavLink to="/admin" className={({isActive}) => isActive ? "text-red-600 font-bold" : "hover:text-red-500 font-bold"}>Quản Lý</NavLink>
+               <NavLink to="/admin" className={({isActive}) => isActive ? "text-red-600 font-bold border border-red-200 px-3 py-1 rounded" : "hover:text-red-500 font-bold px-3 py-1"}>
+                   Quản Lý
+               </NavLink>
             )}
           </div>
         )}
@@ -133,7 +131,12 @@ const Navbar = () => {
                 </button>
             </form>
           )}
-
+          {/* --- THÊM PHẦN NÀY: CHỈ HIỆN KHI ĐÃ ĐĂNG NHẬP --- */}
+            {user && (
+                <NavLink to="/history" className={({isActive}) => isActive ? "text-green-700" : "hover:text-green-600"}>
+                    Lịch sử đơn hàng
+                </NavLink>
+            )}
           {/* User Info */}
           {user ? (
             <div className="flex items-center gap-2 border-l pl-4 ml-2 border-gray-200">
@@ -144,12 +147,9 @@ const Navbar = () => {
             </div>
           ) : (
             <Link to="/login" className="text-gray-600 hover:text-green-700 transition border-l pl-4 ml-2 border-gray-200">
-                <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
+                <span className="text-sm font-bold">Đăng Nhập</span>
             </Link>
           )}
-
           {/* Icon Giỏ hàng */}
           {!isAdminPage && (
             <Link to="/cart" className="relative text-gray-600 hover:text-green-700 transition">

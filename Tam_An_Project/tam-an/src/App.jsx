@@ -20,6 +20,8 @@ import Profile from './pages/Profile';
 import Checkout from './pages/Checkout';
 import Promotions from './pages/Promotions';
 import Delivery from './pages/Delivery';
+import PaymentResult from './components/PaymentResult';
+import OrderHistory from './pages/OrderHistory';
 function App() {
   const location = useLocation();
 
@@ -44,6 +46,8 @@ function App() {
             <Route path="/checkout" element={<AnimatedPage><Checkout /></AnimatedPage>} />
             <Route path="/delivery" element={<AnimatedPage><Delivery /></AnimatedPage>} />
             <Route path="/promotions" element={<AnimatedPage><Promotions /></AnimatedPage>} />
+            <Route path="/payment-result" element={<PaymentResult />} />
+            <Route path="/history" element={<OrderHistory />} />
             <Route path="*" element={<div className="text-center py-10">404 - Không tìm thấy trang</div>} />
           </Routes>
         </AnimatePresence>

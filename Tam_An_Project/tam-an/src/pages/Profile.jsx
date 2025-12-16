@@ -23,7 +23,7 @@ const Profile = () => {
     }
   }, [navigate]);
 
-  // 2. Hàm xử lý cập nhật
+  // 2. Hàm xử lý cập nhật (ĐÃ SỬA)
   const handleUpdate = async (e) => {
     e.preventDefault();
     setMessage({ text: '', type: '' });
@@ -34,21 +34,33 @@ const Profile = () => {
     }
 
     try {
-      // --- THAY ĐỔI QUAN TRỌNG TẠI ĐÂY ---
-      // Gọi API update theo Email (đã sửa bên server.js)
+      // Gọi API update
       const res = await fetch(`http://localhost:5000/api/users/update`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
+        
+        // --- QUAN TRỌNG: Gửi Cookie xác thực đi ---
+        credentials: 'include', 
+        // ------------------------------------------
+
         body: JSON.stringify({ 
             name: name, 
             password: password,
-            email: user.email // Gửi email về để server biết đang sửa user nào
+            email: user.email,   // Gửi email để định danh (readonly)
+            address: user.address, // Gửi địa chỉ mới
+            phone: user.phone      // Gửi số điện thoại mới
         })
       });
 
       if (res.ok) {
         // Cập nhật thành công -> Lưu lại thông tin mới vào LocalStorage
-        const newUserInfo = { ...user, name: name }; 
+        const newUserInfo = { 
+            ...user, 
+            name: name,
+            address: user.address, // Cập nhật luôn địa chỉ vào storage
+            phone: user.phone      // Cập nhật luôn SĐT vào storage
+        }; 
+        
         localStorage.setItem('user', JSON.stringify(newUserInfo)); 
         setUser(newUserInfo);
         
@@ -58,7 +70,8 @@ const Profile = () => {
         // Bắn tín hiệu để Navbar cập nhật tên mới ngay lập tức
         window.dispatchEvent(new Event("storage"));
       } else {
-        setMessage({ text: 'Có lỗi xảy ra, vui lòng thử lại.', type: 'error' });
+        const errData = await res.json();
+        setMessage({ text: errData.message || 'Có lỗi xảy ra, vui lòng thử lại.', type: 'error' });
       }
     } catch (error) {
       console.error(error);
@@ -67,6 +80,10 @@ const Profile = () => {
   };
 
   const handleLogout = () => {
+    // Gọi API logout để xóa cookie ở server (nếu server có hỗ trợ)
+    fetch('http://localhost:5000/api/logout', { method: 'POST', credentials: 'include' })
+      .catch(err => console.log(err));
+
     localStorage.removeItem('user');
     window.dispatchEvent(new Event("storage"));
     navigate('/login');
@@ -149,6 +166,7 @@ const Profile = () => {
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition"
                   />
                 </div>
+
                 {/* Số điện thoại */}
                 <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Số điện thoại</label>
@@ -170,6 +188,7 @@ const Profile = () => {
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none"
                 />
                 </div>
+
                 {/* Mật khẩu */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">

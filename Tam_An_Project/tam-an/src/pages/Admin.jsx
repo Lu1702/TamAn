@@ -16,7 +16,6 @@ const Admin = () => {
 
   // --- 3. LOGIC KHUYẾN MÃI (VÒNG QUAY) ---
   const [promotions, setPromotions] = useState([]);
-  // Thêm trường 'percentage' để chỉnh tỷ lệ
   const [promoForm, setPromoForm] = useState({ label: '', value: '', color: '#ff0000', percentage: '' });
 
   useEffect(() => {
@@ -31,7 +30,7 @@ const Admin = () => {
     fetchPromotions();
   }, [navigate]);
 
-  // --- CÁC HÀM FETCH DỮ LIỆU (THÊM CREDENTIALS ĐỂ GỬI COOKIE) ---
+  // --- CÁC HÀM FETCH DỮ LIỆU ---
   const fetchProducts = async () => {
     try {
         const res = await fetch('http://localhost:5000/api/products');
@@ -41,7 +40,6 @@ const Admin = () => {
 
   const fetchOrders = async () => {
     try {
-        // Cần credentials vì API orders yêu cầu admin
         const res = await fetch('http://localhost:5000/api/orders', { credentials: 'include' });
         if (res.ok) setOrders(await res.json());
     } catch (error) { console.error(error); }
@@ -64,7 +62,6 @@ const Admin = () => {
     Object.keys(productForm).forEach(key => data.append(key, productForm[key]));
     if (imageFile) data.append('image', imageFile);
 
-    // Thêm credentials: 'include'
     const res = await fetch('http://localhost:5000/api/products', { 
         method: 'POST', 
         body: data,
@@ -88,7 +85,33 @@ const Admin = () => {
     }
   };
 
-  // --- HANDLERS KHUYẾN MÃI (UPDATED) ---
+  // --- HANDLERS ĐƠN HÀNG (MỚI THÊM) ---
+  const handleMarkAsDone = async (orderId) => {
+    if (!window.confirm("Xác nhận đơn hàng này đã thanh toán/hoàn thành?")) return;
+
+    try {
+        const res = await fetch(`http://localhost:5000/api/orderdone`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include', // Gửi cookie admin
+            body: JSON.stringify({ 
+            id: orderId
+        })
+        });
+
+        if (res.ok) {
+            alert("Đã cập nhật trạng thái đơn hàng!");
+            fetchOrders(); // Load lại danh sách để thấy thay đổi
+        } else {
+            alert("Lỗi khi cập nhật");
+        }
+    } catch (error) {
+        console.error(error);
+        alert("Lỗi kết nối server");
+    }
+  };
+
+  // --- HANDLERS KHUYẾN MÃI ---
   const handlePromoChange = (e) => setPromoForm({ ...promoForm, [e.target.name]: e.target.value });
   
   const handleAddPromo = async (e) => {
@@ -97,13 +120,12 @@ const Admin = () => {
         const res = await fetch('http://localhost:5000/api/promotions', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            credentials: 'include', // Quan trọng
+            credentials: 'include',
             body: JSON.stringify(promoForm)
         });
         if (res.ok) {
             alert("Thêm ô phần thưởng thành công!");
             fetchPromotions();
-            // Reset form
             setPromoForm({ label: '', value: '', color: '#ff0000', percentage: '' });
         }
     } catch (error) { console.error(error); }
@@ -223,7 +245,7 @@ const Admin = () => {
           </div>
         )}
 
-        {/* VIEW 2: QUẢN LÝ ĐƠN HÀNG */}
+        {/* VIEW 2: QUẢN LÝ ĐƠN HÀNG (ĐÃ SỬA: THÊM NÚT DUYỆT) */}
         {activeTab === 'orders' && (
           <div className="animate-fade-in">
             <h1 className="text-3xl font-bold mb-6 text-green-800 font-serif border-b-2 border-green-200 pb-2 inline-block">Danh Sách Đơn Hàng</h1>
@@ -233,10 +255,10 @@ const Admin = () => {
                   <tr>
                     <th className="px-6 py-4 text-left text-xs font-bold text-green-800 uppercase">Mã Đơn</th>
                     <th className="px-6 py-4 text-left text-xs font-bold text-green-800 uppercase">Khách Hàng</th>
-                    <th className="px-6 py-4 text-left text-xs font-bold text-green-800 uppercase">Liên Hệ & Ghi Chú</th>
                     <th className="px-6 py-4 text-left text-xs font-bold text-green-800 uppercase">Chi Tiết Món</th>
                     <th className="px-6 py-4 text-left text-xs font-bold text-green-800 uppercase">Tổng Tiền</th>
-                    <th className="px-6 py-4 text-left text-xs font-bold text-green-800 uppercase">Ngày Đặt</th>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-green-800 uppercase">Trạng Thái</th>
+                    <th className="px-6 py-4 text-center text-xs font-bold text-green-800 uppercase">Hành Động</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 text-sm">
@@ -248,15 +270,9 @@ const Admin = () => {
                         <td className="px-6 py-4 font-bold text-green-700">#{order.id}</td>
                         <td className="px-6 py-4">
                             <div className="font-bold text-gray-900">{order.customer_name}</div>
-                            {order.user_id ? 
-                                <span className="inline-block mt-1 text-[10px] bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full font-bold">THÀNH VIÊN</span> : 
-                                <span className="inline-block mt-1 text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">VÃNG LAI</span>
-                            }
-                        </td>
-                        <td className="px-6 py-4">
-                            <div className="font-medium">{order.phone}</div>
-                            <div className="text-gray-500 text-xs mt-0.5">{order.address}</div>
-                            {order.note && <div className="text-red-500 italic text-xs mt-2 bg-red-50 p-1 rounded">Note: {order.note}</div>}
+                            <div className="text-gray-500 text-xs mt-0.5">{order.phone}</div>
+                            <div className="text-gray-400 text-xs italic">{order.address}</div>
+                            {order.note && <div className="text-red-500 text-xs mt-1 bg-red-50 p-1 rounded inline-block">Ghi chú: {order.note}</div>}
                         </td>
                         <td className="px-6 py-4">
                             <ul className="list-disc list-inside space-y-1">
@@ -270,9 +286,38 @@ const Admin = () => {
                         <td className="px-6 py-4 font-bold text-green-800 text-base">
                             {Number(order.total_price).toLocaleString()} đ
                         </td>
-                        <td className="px-6 py-4 text-gray-500 text-xs">
-                            {new Date(order.order_date).toLocaleString('vi-VN')}
+                        <td className="px-6 py-4">
+                          <div className="flex flex-col gap-1">
+                            <span className="px-2 py-1 rounded text-xs font-bold bg-gray-100 w-fit">
+                                {order.payment_method}
+                            </span>
+                            {order.payment_status === 'PAID' ? (
+                                <span className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-bold border border-green-200 w-fit">
+                                    ✅ Đã thanh toán
+                                </span>
+                            ) : (
+                                <span className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full text-xs font-bold border border-yellow-200 w-fit">
+                                    ⏳ Chưa thanh toán
+                                </span>
+                            )}
+                          </div>
                         </td>
+                        
+                        {/* --- CỘT HÀNH ĐỘNG (Nút Duyệt) --- */}
+                        <td className="px-6 py-4 text-center">
+                            {order.payment_status !== 'PAID' && (
+                                <button 
+                                    onClick={() => handleMarkAsDone(order.id)}
+                                    className="bg-green-600 text-white px-3 py-1.5 rounded shadow hover:bg-green-700 transition text-xs font-bold flex items-center gap-1 mx-auto"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                                    </svg>
+                                    Duyệt Đơn
+                                </button>
+                            )}
+                        </td>
+
                       </tr>
                     );
                   })}
@@ -282,7 +327,7 @@ const Admin = () => {
           </div>
         )}
 
-        {/* VIEW 3: CÀI ĐẶT VÒNG QUAY (ĐÃ THÊM LOGIC TỶ LỆ) */}
+        {/* VIEW 3: CÀI ĐẶT VÒNG QUAY */}
         {activeTab === 'promotions' && (
           <div className="animate-fade-in">
             <h1 className="text-3xl font-bold mb-6 text-green-800 font-serif border-b-2 border-green-200 pb-2 inline-block">Cài Đặt Vòng Quay</h1>
@@ -291,55 +336,16 @@ const Admin = () => {
             <div className="bg-white/80 backdrop-blur-sm p-6 rounded-xl shadow-lg border border-green-100 mb-8 max-w-3xl">
               <h3 className="text-lg font-bold mb-4 text-green-900">Thêm Ô Quà Tặng & Cấu Hình Tỷ Lệ</h3>
               <form onSubmit={handleAddPromo} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                
-                {/* Tên hiển thị */}
-                <input 
-                    className="p-3 border rounded-lg focus:ring-2 focus:ring-green-500 outline-none" 
-                    name="label" 
-                    placeholder="Tên hiển thị (VD: Giảm 20%)" 
-                    value={promoForm.label} 
-                    onChange={handlePromoChange} 
-                    required 
-                />
-                
-                {/* Giá trị giảm */}
-                <input 
-                    className="p-3 border rounded-lg focus:ring-2 focus:ring-green-500 outline-none" 
-                    name="value" 
-                    type="number" 
-                    placeholder="Giá trị giảm (VD: 20)" 
-                    value={promoForm.value} 
-                    onChange={handlePromoChange} 
-                    required 
-                />
-                
-                {/* --- Ô NHẬP TỶ LỆ GIAN LẬN --- */}
+                <input className="p-3 border rounded-lg focus:ring-2 focus:ring-green-500 outline-none" name="label" placeholder="Tên hiển thị (VD: Giảm 20%)" value={promoForm.label} onChange={handlePromoChange} required />
+                <input className="p-3 border rounded-lg focus:ring-2 focus:ring-green-500 outline-none" name="value" type="number" placeholder="Giá trị giảm (VD: 20)" value={promoForm.value} onChange={handlePromoChange} required />
                 <div className="relative">
-                    <input 
-                        className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-green-500 outline-none" 
-                        name="percentage" 
-                        type="number" 
-                        step="0.0001" 
-                        placeholder="Tỷ lệ trúng (VD: 99.9)" 
-                        value={promoForm.percentage} 
-                        onChange={handlePromoChange} 
-                        required 
-                    />
+                    <input className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-green-500 outline-none" name="percentage" type="number" step="0.0001" placeholder="Tỷ lệ trúng (VD: 99.9)" value={promoForm.percentage} onChange={handlePromoChange} required />
                     <span className="absolute right-3 top-3 text-gray-400 font-bold">%</span>
                 </div>
-
-                {/* Chọn màu */}
                 <div className="flex items-center gap-2 border p-2 rounded-lg bg-white">
                     <span className="text-gray-700 font-medium">Màu ô:</span>
-                    <input 
-                        type="color" 
-                        name="color" 
-                        value={promoForm.color} 
-                        onChange={handlePromoChange} 
-                        className="h-8 w-full cursor-pointer rounded border-none"
-                    />
+                    <input type="color" name="color" value={promoForm.color} onChange={handlePromoChange} className="h-8 w-full cursor-pointer rounded border-none" />
                 </div>
-
                 <button type="submit" className="md:col-span-2 bg-purple-600 text-white py-3 rounded-lg hover:bg-purple-700 font-bold shadow-md transition">
                     + Thêm Ô Này Vào Vòng Quay
                 </button>
@@ -353,21 +359,15 @@ const Admin = () => {
                     <div key={promo.id} className="relative bg-white p-4 rounded-xl shadow-md border-l-8 flex flex-col gap-1" style={{ borderLeftColor: promo.color }}>
                         <div className="flex justify-between items-start">
                             <h4 className="font-bold text-lg text-gray-800">{promo.label}</h4>
-                            <button onClick={() => handleDeletePromo(promo.id)} className="text-red-500 hover:text-red-700 font-bold text-xl bg-red-50 w-8 h-8 flex items-center justify-center rounded-full">
-                                ×
-                            </button>
+                            <button onClick={() => handleDeletePromo(promo.id)} className="text-red-500 hover:text-red-700 font-bold text-xl bg-red-50 w-8 h-8 flex items-center justify-center rounded-full">×</button>
                         </div>
                         <p className="text-gray-500 text-sm">Giá trị: {promo.value}%</p>
-                        
-                        {/* Hiển thị tỷ lệ */}
                         <div className="mt-2 text-xs font-bold text-purple-700 bg-purple-100 px-2 py-1 rounded w-fit">
                             Tỷ lệ trúng: {promo.percentage}%
                         </div>
                     </div>
                 ))}
             </div>
-            
-            {promotions.length === 0 && <p className="text-gray-500 mt-4">Chưa có ô quà nào. Hãy thêm ít nhất 2 ô để vòng quay hoạt động.</p>}
           </div>
         )}
 

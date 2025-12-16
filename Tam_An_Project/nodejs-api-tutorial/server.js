@@ -8,7 +8,7 @@ const fs = require('fs');
 const nodemailer = require('nodemailer');
 const jwt = require('jsonwebtoken'); // 1. IMPORT JWT
 const cookieParser = require('cookie-parser'); // 2. IMPORT COOKIE PARSER
-
+const paymentController = require('./controllers/paymentController');
 const app = express();
 const PORT = 5000;
 
@@ -432,7 +432,8 @@ app.get('/api/orders', verifyAdmin, async (req, res) => {
 
 app.post('/api/orders', async (req, res) => {
     try {
-        const { user_id, customer_name, phone, address, note, total_price, items } = req.body;
+        const { user_id, customer_name, phone, address, note, total_price, items, voucher_code, payment_method, payment_status } = req.body;
+
         const request = new sql.Request();
         request.input('user_id', user_id || null);
         request.input('customer_name', customer_name);
@@ -440,10 +441,44 @@ app.post('/api/orders', async (req, res) => {
         request.input('address', address);
         request.input('note', note);
         request.input('total_price', total_price);
-        request.input('items_json', JSON.stringify(items)); 
-        await request.query(`INSERT INTO Orders (user_id, customer_name, phone, address, note, total_price, items_json) VALUES (@user_id, @customer_name, @phone, @address, @note, @total_price, @items_json)`);
+        request.input('items_json', JSON.stringify(items));
+        
+        // 1. Nhận dữ liệu từ Frontend
+        request.input('payment_method', payment_method || 'COD'); 
+        request.input('payment_status', payment_status || 'UNPAID');
+
+        // Debug: In ra xem Frontend gửi gì lên (Xem tại Terminal)
+        console.log("DEBUG ORDER:", { payment_method, payment_status });
+
+        // 2. CÂU LỆNH INSERT PHẢI CÓ CỘT payment_status (QUAN TRỌNG NHẤT)
+        await request.query(`
+            INSERT INTO Orders (
+                user_id, customer_name, phone, address, note, total_price, items_json, 
+                payment_method, payment_status 
+            )
+            VALUES (
+                @user_id, @customer_name, @phone, @address, @note, @total_price, @items_json, 
+                @payment_method, @payment_status
+            )
+        `);
+
+        // ... (Phần xử lý voucher và xóa giỏ hàng giữ nguyên) ...
+        if (voucher_code) {
+             const vReq = new sql.Request();
+             vReq.input('code', voucher_code);
+             await vReq.query`UPDATE UserVouchers SET is_used = 1 WHERE code = @code`;
+        }
+        if (user_id) {
+             const cartReq = new sql.Request();
+             cartReq.input('user_id', user_id);
+             await cartReq.query`DELETE FROM Cart WHERE user_id = @user_id`;
+        }
+
         res.status(201).json({ success: true, message: "Đặt hàng thành công!" });
-    } catch (err) { res.status(500).json({ error: err.message }); }
+    } catch (err) {
+        console.error("Lỗi đặt hàng:", err);
+        res.status(500).json({ error: err.message });
+    }
 });
 
 app.get('/api/promotions', async (req, res) => {
@@ -561,7 +596,24 @@ app.delete('/api/promotions/:id', verifyAdmin, async (req, res) => {
         res.json({ success: true });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
+app.put('/api/orderdone', verifyAdmin, async (req, res) => {
+    try {
+        const { id } = req.body; // Lấy ID đơn hàng từ URL
 
+        const request = new sql.Request();
+        request.input('id', id);
+        await request.query`
+            UPDATE Orders 
+            SET payment_status = 'PAID' 
+            WHERE id = @id
+        `;
+
+        res.json({ success: true, message: "Đã cập nhật trạng thái đơn hàng thành công!" });
+    } catch (err) {
+        console.error("Lỗi cập nhật đơn hàng:", err);
+        res.status(500).json({ error: err.message });
+    }
+});
 app.post('/api/orders', async (req, res) => {
     try {
         const { user_id, customer_name, phone, address, note, total_price, items, voucher_code } = req.body;
@@ -591,6 +643,17 @@ app.post('/api/orders', async (req, res) => {
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
+});
+app.post('/api/create_payment_url', paymentController.createPaymentUrl);
+
+app.get('/api/history', verifyToken, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const request = new sql.Request();
+        request.input('userId', userId);
+        const result = await request.query(`SELECT * FROM Orders WHERE user_id = @userId ORDER BY order_date DESC`);
+        res.json(result.recordset);
+    } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 app.listen(PORT, () => {
