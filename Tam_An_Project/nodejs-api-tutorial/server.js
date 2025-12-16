@@ -110,11 +110,6 @@ const verifyAdmin = (req, res, next) => {
     });
 };
 
-// ==========================================
-//               API AUTH
-// ==========================================
-
-// 1. ĐĂNG NHẬP (Cấp Token & Lưu Cookie)
 app.post('/api/login', async (req, res) => {
     try {
         const { email, password } = req.body;
@@ -157,7 +152,7 @@ app.post('/api/login', async (req, res) => {
     }
 });
 
-// 2. LÀM MỚI TOKEN (REFRESH TOKEN)
+
 app.post('/api/refresh', async (req, res) => {
     const refreshToken = req.cookies.refreshToken;
     if (!refreshToken) return res.status(401).json({ message: "Không có Refresh Token" });
@@ -189,7 +184,7 @@ app.post('/api/refresh', async (req, res) => {
     });
 });
 
-// 3. ĐĂNG XUẤT (Xóa Cookie & Token DB)
+
 app.post('/api/logout', verifyToken, async (req, res) => {
     try {
         await sql.query`UPDATE Users SET refreshToken = NULL WHERE id = ${req.user.id}`;
@@ -201,7 +196,6 @@ app.post('/api/logout', verifyToken, async (req, res) => {
     }
 });
 
-// 4. ĐĂNG KÝ
 app.post('/api/register', async (req, res) => {
     try {
         const { email, password, name } = req.body;
@@ -220,14 +214,8 @@ app.post('/api/register', async (req, res) => {
     }
 });
 
-// ==========================================
-//               API USER
-// ==========================================
-
-// Cập nhật thông tin (Yêu cầu đăng nhập)
 app.put('/api/users/update', verifyToken, async (req, res) => {
     try {
-        // Chỉ cho phép user tự sửa thông tin của chính mình (dựa vào req.user.id từ token)
         const userId = req.user.id; 
         const { name, password, email, address, phone } = req.body;
 
@@ -247,12 +235,38 @@ app.put('/api/users/update', verifyToken, async (req, res) => {
         res.status(500).json({ error: err.message });
     }
 });
+app.get('/api/categories', async (req, res) => {
+    try {
+        // DISTINCT giúp lấy ra các giá trị không trùng lặp
+        const result = await sql.query('SELECT DISTINCT category FROM Products');
+        // Trả về mảng object [{ category: "Trà Xanh" }, { category: "Trà Thảo Mộc" }]
+        res.json(result.recordset);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+app.get('/api/products', async (req, res) => {
+    try {
+        const { search, category } = req.query; // Thêm tham số category
+        
+        let query = 'SELECT * FROM Products WHERE 1=1'; // Mẹo WHERE 1=1 để dễ nối chuỗi
+        const request = new sql.Request();
 
-// ==========================================
-//               API PRODUCTS
-// ==========================================
+        if (search) {
+            query += ` AND name LIKE N'%${search}%'`; 
+        }
 
-// Lấy danh sách (Public)
+        if (category) {
+            query += ` AND category = @category`;
+            request.input('category', category); // Dùng tham số để bảo mật
+        }
+
+        const result = await request.query(query);
+        res.json(result.recordset);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
 app.get('/api/products', async (req, res) => {
     try {
         const { search } = req.query;
@@ -262,8 +276,6 @@ app.get('/api/products', async (req, res) => {
         res.json(result.recordset);
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
-
-// Chi tiết sản phẩm (Public)
 app.get('/api/products/:id', async (req, res) => {
     try {
         const { id } = req.params;
@@ -273,7 +285,6 @@ app.get('/api/products/:id', async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// Thêm sản phẩm (Chỉ Admin)
 app.post('/api/products', verifyAdmin, upload.single('image'), async (req, res) => {
     try {
         const { name, price, desc, category, stock } = req.body;
@@ -291,7 +302,6 @@ app.post('/api/products', verifyAdmin, upload.single('image'), async (req, res) 
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// Xóa sản phẩm (Chỉ Admin)
 app.delete('/api/products/:id', verifyAdmin, async (req, res) => {
     try {
         const { id } = req.params;
@@ -300,7 +310,6 @@ app.delete('/api/products/:id', verifyAdmin, async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// Sửa sản phẩm (Chỉ Admin)
 app.put('/api/products/:id', verifyAdmin, upload.single('image'), async (req, res) => {
     try {
         const { id } = req.params;
@@ -328,14 +337,8 @@ app.put('/api/products/:id', verifyAdmin, upload.single('image'), async (req, re
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// ==========================================
-//               API CART (BẢO VỆ)
-// ==========================================
-
-// Lấy giỏ hàng (Yêu cầu Token)
 app.get('/api/cart/:userId', verifyToken, async (req, res) => {
     try {
-        // Đảm bảo user chỉ xem được giỏ của mình
         if (req.user.id != req.params.userId && req.user.role !== 'admin') {
             return res.status(403).json({ message: "Không có quyền xem giỏ hàng này" });
         }
@@ -355,7 +358,6 @@ app.get('/api/cart/:userId', verifyToken, async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// Thêm vào giỏ (Yêu cầu Token)
 app.post('/api/cart/add', verifyToken, async (req, res) => {
     try {
         const { user_id, product_id, quantity } = req.body;
@@ -377,7 +379,6 @@ app.post('/api/cart/add', verifyToken, async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// Sửa số lượng (Yêu cầu Token)
 app.put('/api/cart/update', verifyToken, async (req, res) => {
     try {
         const { user_id, product_id, quantity } = req.body;
@@ -397,7 +398,6 @@ app.put('/api/cart/update', verifyToken, async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// Xóa mục (Yêu cầu Token)
 app.delete('/api/cart/remove/:userId/:productId', verifyToken, async (req, res) => {
     try {
         const { userId, productId } = req.params;
@@ -411,7 +411,6 @@ app.delete('/api/cart/remove/:userId/:productId', verifyToken, async (req, res) 
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// Xóa sạch giỏ (Yêu cầu Token)
 app.delete('/api/cart/clear/:userId', verifyToken, async (req, res) => {
     try {
         const { userId } = req.params;
@@ -424,11 +423,6 @@ app.delete('/api/cart/clear/:userId', verifyToken, async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// ==========================================
-//               API ORDERS
-// ==========================================
-
-// Lấy danh sách (Chỉ Admin)
 app.get('/api/orders', verifyAdmin, async (req, res) => {
     try {
         const result = await sql.query`SELECT * FROM Orders ORDER BY order_date DESC`;
@@ -436,7 +430,6 @@ app.get('/api/orders', verifyAdmin, async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// Tạo đơn hàng (Public hoặc User)
 app.post('/api/orders', async (req, res) => {
     try {
         const { user_id, customer_name, phone, address, note, total_price, items } = req.body;
@@ -453,14 +446,8 @@ app.post('/api/orders', async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// ==========================================
-//          API PROMOTIONS (VÒNG QUAY)
-// ==========================================
-
-// Lấy danh sách (Public - Để user quay)
 app.get('/api/promotions', async (req, res) => {
     try {
-        // Sắp xếp theo percentage giảm dần để thuật toán chạy mượt hơn
         const result = await sql.query('SELECT * FROM Promotions ORDER BY percentage DESC');
         res.json(result.recordset);
     } catch (err) { res.status(500).json({ error: err.message }); }
@@ -468,8 +455,6 @@ app.get('/api/promotions', async (req, res) => {
 app.post('/api/promotions/spin', verifyToken, async (req, res) => {
     try {
         const userId = req.user.id;
-
-        // --- BƯỚC A: KIỂM TRA COOLDOWN 7 NGÀY ---
         const userCheck = await sql.query`SELECT last_spin_date FROM Users WHERE id = ${userId}`;
         const lastSpin = userCheck.recordset[0]?.last_spin_date;
 
@@ -486,23 +471,13 @@ app.post('/api/promotions/spin', verifyToken, async (req, res) => {
                 });
             }
         }
-
-        // --- BƯỚC B: LẤY DANH SÁCH QUÀ & TÍNH TỶ LỆ ---
         const prizesRes = await sql.query('SELECT * FROM Promotions');
         const prizes = prizesRes.recordset;
 
         if (prizes.length === 0) return res.status(400).json({ message: "Chưa có quà!" });
-
-        // --- BƯỚC C: THUẬT TOÁN RANDOM CÓ TRỌNG SỐ (GIAN LẬN) ---
-        // Tính tổng tỷ lệ (Thường là 100, nhưng code này support lẻ)
         const totalWeight = prizes.reduce((sum, item) => sum + (item.percentage || 0), 0);
-        
-        // Random 1 số từ 0 đến totalWeight (VD: 0 đến 100)
         let randomNum = Math.random() * totalWeight;
-        
         let winPrize = null;
-        
-        // Duyệt qua từng giải để xem số random rơi vào ô nào
         for (const prize of prizes) {
             if (randomNum < prize.percentage) {
                 winPrize = prize;
@@ -510,19 +485,12 @@ app.post('/api/promotions/spin', verifyToken, async (req, res) => {
             }
             randomNum -= prize.percentage;
         }
-        
-        // Fallback: Nếu tính toán sai số nhỏ, lấy giải cuối cùng hoặc giải có tỷ lệ cao nhất
         if (!winPrize) winPrize = prizes[0];
 
-        // --- BƯỚC D: LƯU VOUCHER & CẬP NHẬT NGÀY QUAY ---
-        
-        // 1. Tạo mã Code
         let voucherCode = Math.random().toString(36).substring(2, 8).toUpperCase();
         
-        // 2. Cập nhật ngày quay mới nhất cho User
         await sql.query`UPDATE Users SET last_spin_date = GETDATE() WHERE id = ${userId}`;
 
-        // 3. Lưu Voucher
         const request = new sql.Request();
         request.input('user_id', userId);
         request.input('code', voucherCode);
@@ -552,7 +520,6 @@ app.post('/api/voucher/apply', verifyToken, async (req, res) => {
         request.input('code', code);
         request.input('userId', userId);
 
-        // Tìm mã trong DB: Phải đúng mã, đúng chủ sở hữu (hoặc bỏ check userId nếu muốn cho tặng), và chưa sử dụng
         const result = await request.query`
             SELECT * FROM UserVouchers 
             WHERE code = @code AND is_used = 0
@@ -561,7 +528,6 @@ app.post('/api/voucher/apply', verifyToken, async (req, res) => {
         if (result.recordset.length > 0) {
             const voucher = result.recordset[0];
             
-            // Check nếu voucher của người khác (Tùy chọn: nếu muốn chặn)
             if (voucher.user_id !== userId) {
                  return res.status(400).json({ success: false, message: "Mã này không thuộc về bạn!" });
             }
@@ -578,7 +544,7 @@ app.post('/api/voucher/apply', verifyToken, async (req, res) => {
         res.status(500).json({ error: err.message });
     }
 });
-// Thêm phần thưởng (Chỉ Admin)
+
 app.post('/api/promotions', verifyAdmin, async (req, res) => {
     try {
         const { label, value, color, percentage } = req.body;
@@ -588,7 +554,6 @@ app.post('/api/promotions', verifyAdmin, async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// Xóa phần thưởng (Chỉ Admin)
 app.delete('/api/promotions/:id', verifyAdmin, async (req, res) => {
     try {
         const { id } = req.params;
@@ -596,12 +561,12 @@ app.delete('/api/promotions/:id', verifyAdmin, async (req, res) => {
         res.json({ success: true });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
+
 app.post('/api/orders', async (req, res) => {
     try {
         const { user_id, customer_name, phone, address, note, total_price, items, voucher_code } = req.body;
 
         const request = new sql.Request();
-        // ... (Các input cũ giữ nguyên) ...
         request.input('user_id', user_id || null);
         request.input('customer_name', customer_name);
         request.input('phone', phone);
@@ -610,13 +575,11 @@ app.post('/api/orders', async (req, res) => {
         request.input('total_price', total_price);
         request.input('items_json', JSON.stringify(items));
 
-        // 1. Tạo đơn hàng
         await request.query(`
             INSERT INTO Orders (user_id, customer_name, phone, address, note, total_price, items_json)
             VALUES (@user_id, @customer_name, @phone, @address, @note, @total_price, @items_json)
         `);
 
-        // 2. Nếu có dùng voucher -> Đánh dấu là đã dùng
         if (voucher_code) {
              const vReq = new sql.Request();
              vReq.input('code', voucher_code);

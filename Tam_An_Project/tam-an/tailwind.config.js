@@ -7,10 +7,10 @@ export default {
   theme: {
     extend: {
       colors: {
-        'tea-green': '#3e654cff', // Màu xanh tươi
-        'tea-dark': '#5cb680ff',  // Màu xanh rêu đậm (Logo/Footer)
-        'earth-beige': '#f5f5f4', // Màu nền kem
-        'earth-brown': '#78350f', // Màu nâu gỗ
+        'tea-green': '#3e654cff', 
+        'tea-dark': '#23603bff', 
+        'earth-beige': '#f5f5f4',
+        'earth-brown': '#78350f',
       },
       fontFamily: {
         serif: ['Merriweather', 'serif'], 

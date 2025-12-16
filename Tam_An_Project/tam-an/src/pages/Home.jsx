@@ -1,4 +1,3 @@
-// src/pages/Home.jsx
 import React from 'react';
 import { Link } from 'react-router-dom';
 
@@ -19,8 +18,8 @@ const Home = () => {
         
         {/* Nội dung chính */}
         <div className="relative z-20 text-center text-white px-4">
-          <h1 className="text-5xl md:text-7xl font-serif font-bold mb-6 drop-shadow-lg">Tinh Hoa Trà Việt</h1>
-          <p className="text-xl md:text-2xl mb-12 font-light max-w-2xl mx-auto drop-shadow-md">Thưởng thức hương vị bình yên trong từng tách trà Tâm An.</p>
+          <h1 className="text-5xl md:text-7xl font-serif font-bold mb-6 drop-shadow-lg">Tiệm trà Tâm An</h1>
+          <p className="text-xl md:text-2xl mb-12 font-light max-w-2xl mx-auto drop-shadow-md">Thưởng thức hương vị bình yên trong từng gói trà.</p>
           
           {/* NÚT BẤM MỚI VỚI STYLE CSS TÙY CHỈNH */}
           <Link to="/shop" className="button">
