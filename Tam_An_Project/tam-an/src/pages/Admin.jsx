@@ -153,26 +153,26 @@ const Admin = () => {
       {/* --- SIDEBAR --- */}
       <div className="w-64 bg-green-900 text-white flex flex-col fixed h-full z-10 shadow-2xl">
         <div className="p-6 text-2xl font-bold font-serif border-b border-green-800 flex items-center gap-2">
-            <span>🛡️ Admin</span>
+            <span>Admin</span>
         </div>
         <nav className="flex-1 p-4 space-y-2">
           <button 
             onClick={() => setActiveTab('products')}
             className={`w-full text-left py-3 px-4 rounded transition flex items-center gap-3 ${activeTab === 'products' ? 'bg-green-700 font-bold shadow-lg' : 'hover:bg-green-800'}`}
           >
-            📦 <span>Sản Phẩm</span>
+            <span>Sản Phẩm</span>
           </button>
           <button 
             onClick={() => setActiveTab('orders')}
             className={`w-full text-left py-3 px-4 rounded transition flex items-center gap-3 ${activeTab === 'orders' ? 'bg-green-700 font-bold shadow-lg' : 'hover:bg-green-800'}`}
           >
-            🛒 <span>Đơn Hàng</span>
+            <span>Đơn Hàng</span>
           </button>
           <button 
             onClick={() => setActiveTab('promotions')}
             className={`w-full text-left py-3 px-4 rounded transition flex items-center gap-3 ${activeTab === 'promotions' ? 'bg-green-700 font-bold shadow-lg' : 'hover:bg-green-800'}`}
           >
-            🎡 <span>Vòng Quay</span>
+            <span>Vòng Quay</span>
           </button>
         </nav>
         <div className="p-4 border-t border-green-800">

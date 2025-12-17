@@ -1,18 +1,18 @@
-# 1. Dùng Node.js làm môi trường
-FROM node:18-alpine
+# Sử dụng platform linux/amd64 để chạy ổn định trên mọi máy
+FROM --platform=linux/amd64 node:18-alpine
 
-# 2. Tạo thư mục làm việc trong container
+# Tạo thư mục làm việc
 WORKDIR /app
 
-# 3. Copy file package để cài thư viện trước (tối ưu cache)
+# Copy package.json để cài thư viện trước (tối ưu cache)
 COPY package*.json ./
 RUN npm install
 
-# 4. Copy toàn bộ code backend vào
+# Copy toàn bộ mã nguồn vào container
 COPY . .
 
-# 5. Mở port 5000
+# Mở cổng 5000 (cổng của backend)
 EXPOSE 5000
 
-# 6. Chạy server
+# Lệnh khởi chạy server
 CMD ["node", "server.js"]

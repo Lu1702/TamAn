@@ -12,15 +12,13 @@ const paymentController = require('./controllers/paymentController');
 const app = express();
 const PORT = 5000;
 
-// --- CẤU HÌNH BẢO MẬT & CORS ---
-// Quan trọng: Phải chỉ định rõ origin frontend để gửi được Cookie
 app.use(cors({
     origin: 'http://localhost:5173', 
     credentials: true 
 }));
 
 app.use(express.json());
-app.use(cookieParser()); // 3. KÍCH HOẠT COOKIE PARSER
+app.use(cookieParser()); 
 
 // --- CONFIG MAIL & CLOUDINARY ---
 const transporter = nodemailer.createTransport({
@@ -654,6 +652,62 @@ app.put('/api/orderdone', verifyAdmin, async (req, res) => {
     } catch (err) {
         console.error("Lỗi cập nhật đơn hàng:", err);
         res.status(500).json({ error: err.message });
+    }
+});
+
+app.get('/api/reviews', async (req, res) => {
+    try {
+        const request = new sql.Request();
+        const result = await request.query("SELECT * FROM Reviews ORDER BY created_at DESC");
+        res.json(result.recordset);
+    } catch (err) {
+        console.error("Lỗi lấy reviews:", err);
+        res.status(500).send("Lỗi server");
+    }
+});
+// 3. Route để khách gửi đánh giá mới
+app.post('/api/reviews', async (req, res) => {
+    const { user_id, user_name, rating, comment } = req.body;
+    try {
+        const request = new sql.Request();
+        request.input('user_id', sql.Int, user_id);
+        request.input('user_name', sql.NVarChar, user_name);
+        request.input('rating', sql.Int, rating);
+        request.input('comment', sql.NVarChar, comment);
+        
+        await request.query("INSERT INTO Reviews (user_id, user_name, rating, comment) VALUES (@user_id, @user_name, @rating, @comment)");
+        res.status(201).send("Gửi đánh giá thành công");
+    } catch (err) {
+        console.error("Lỗi lưu review:", err);
+        res.status(500).send("Không thể lưu đánh giá");
+    }
+});
+app.put('/api/editreview/:id', async (req, res) => {
+    const { id } = req.params; // ID của đánh giá cần sửa
+    const { user_id, rating, comment } = req.body; // Thông tin mới và ID người dùng
+
+    try {
+        const request = new sql.Request();
+        request.input('id', sql.Int, id);
+        request.input('user_id', sql.Int, user_id);
+        request.input('rating', sql.Int, rating);
+        request.input('comment', sql.NVarChar, comment);
+
+        // Chỉ cập nhật nếu id đánh giá và user_id khớp nhau
+        const result = await request.query(`
+            UPDATE Reviews 
+            SET rating = @rating, comment = @comment 
+            WHERE id = @id AND user_id = @user_id
+        `);
+
+        if (result.rowsAffected[0] === 0) {
+            return res.status(403).send("Bạn không có quyền sửa đánh giá này hoặc đánh giá không tồn tại.");
+        }
+
+        res.send("Cập nhật đánh giá thành công!");
+    } catch (err) {
+        console.error("Lỗi chỉnh sửa review:", err);
+        res.status(500).send("Lỗi hệ thống khi cập nhật.");
     }
 });
 app.listen(PORT, () => {

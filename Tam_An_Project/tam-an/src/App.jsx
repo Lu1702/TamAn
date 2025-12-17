@@ -22,6 +22,8 @@ import Promotions from './pages/Promotions';
 import Delivery from './pages/Delivery';
 import PaymentResult from './components/PaymentResult';
 import OrderHistory from './pages/OrderHistory';
+import Promotion from './pages/Promotion';
+import ReviewPage from './pages/ReviewPage';
 function App() {
   const location = useLocation();
 
@@ -48,6 +50,8 @@ function App() {
             <Route path="/promotions" element={<AnimatedPage><Promotions /></AnimatedPage>} />
             <Route path="/payment-result" element={<PaymentResult />} />
             <Route path="/history" element={<OrderHistory />} />
+            <Route path="/promotion" element={<Promotion />} />
+            <Route path="/reviews" element={<ReviewPage />} />
             <Route path="*" element={<div className="text-center py-10">404 - Không tìm thấy trang</div>} />
           </Routes>
         </AnimatePresence>
