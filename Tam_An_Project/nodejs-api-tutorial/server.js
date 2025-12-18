@@ -710,6 +710,21 @@ app.put('/api/editreview/:id', async (req, res) => {
         res.status(500).send("Lỗi hệ thống khi cập nhật.");
     }
 });
+app.get('/',(req,res,next)=> {
+    res.send("Chào bạn đây là backend!")
+}
+)
+app.get('/api/categories',async (res)=>{
+    try
+    {
+        const request = new sql.Request();
+        const result =await request.query('SELECT * FROM PRODUCTS');
+        res.json(result.recordset);
+    }catch(err)
+    {
+        res.status(500).send("Lỗi hệ thống khi cập nhật.");
+    }
+})
 app.listen(PORT, () => {
     console.log(`Server đang chạy tại http://localhost:${PORT}`);
 });
