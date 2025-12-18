@@ -714,15 +714,13 @@ app.get('/',(req,res,next)=> {
     res.send("Chào bạn đây là backend!")
 }
 )
-app.get('/api/categories',async (res)=>{
-    try
-    {
+app.get('/api/cate', async (req, res) => { 
+    try {
         const request = new sql.Request();
-        const result =await request.query('SELECT * FROM PRODUCTS');
-        res.json(result.recordset);
-    }catch(err)
-    {
-        res.status(500).send("Lỗi hệ thống khi cập nhật.");
+        const result = await request.query('SELECT Category FROM Products');
+        res.status(200).json(result.recordset);
+    } catch (err) {
+        res.status(500).send("lỗi");
     }
 })
 app.listen(PORT, () => {
