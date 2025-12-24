@@ -1,5 +1,5 @@
 <h1>Dự án cá nhân</h1>
-<h2>CÁC CÔNG NGHỆ SỬ DỤNG</h2>
+### Công Nghê Sử Dụng (Project Structure)
 <br></br>
 <li>VUE</li>
 <li>SQL SERVER</li>
