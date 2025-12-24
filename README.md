@@ -7,7 +7,7 @@
 
 
 
-<p>
+```text
 📦src
  ┣ 📂assets
  ┃ ┗ 📜react.svg
@@ -42,4 +42,3 @@
  ┣ 📜App.jsx
  ┣ 📜index.css
  ┗ 📜main.jsx
- </p>
