@@ -1,5 +1,5 @@
 <h1>Dự án cá nhân</h1>
-<h2>Công Nghê Sử Dụng</h2>
+<h2>Công Nghệ Sử Dụng</h2>
 <br></br>
 <li>VUE</li>
 <li>SQL SERVER</li>
