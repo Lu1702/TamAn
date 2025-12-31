@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const db = require('./services/database');
 const sql = require('mssql');
 const cloudinary = require('cloudinary').v2;
 const multer = require('multer');
@@ -11,7 +12,9 @@ const cookieParser = require('cookie-parser'); // 2. IMPORT COOKIE PARSER
 const paymentController = require('./controllers/paymentController');
 const app = express();
 const PORT = 5000;
-
+const logger = require('./services/LoggerService'); 
+const cacheServer = require('./services/cacheServer');
+const CountAmmountCus=require('./services/countammountcus');
 app.use(cors({
     origin: 'http://localhost:5173', 
     credentials: true 
@@ -63,9 +66,9 @@ const dbConfig = {
 async function connectDB() {
     try {
         await sql.connect(dbConfig);
-        console.log("✅ Đã kết nối SQL Server thành công!");
+        logger.logInfo("Đã kết nối SQL Server thành công!");
     } catch (err) {
-        console.error("❌ Lỗi kết nối SQL:", err);
+        logger.logError("Lỗi kết nối SQL:", err);
     }
 }
 connectDB();
@@ -217,7 +220,7 @@ app.put('/api/users/update', verifyToken, async (req, res) => {
         const userId = req.user.id; 
         const { name, password, email, address, phone } = req.body;
 
-        const request = new sql.Request();
+        const request = await db.request();
         request.input('id', userId);
         request.input('name', name);
         request.input('password', password);
@@ -261,6 +264,8 @@ app.get('/api/products', async (req, res) => {
 
         const result = await request.query(query);
         res.json(result.recordset);
+        CountAmmountCus.increment();
+        logger.logInfo(`Số lượng khách truy cập: ${CountAmmountCus.getCount()}`);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -272,6 +277,8 @@ app.get('/api/products', async (req, res) => {
         if (search) query += ` WHERE name LIKE N'%${search}%'`; 
         const result = await sql.query(query);
         res.json(result.recordset);
+        CountAmmountCus.increment();
+        logger.logInfo(`Số lượng khách truy cập: ${CountAmmountCus.getCount()}`);
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 app.get('/api/products/:id', async (req, res) => {
@@ -716,10 +723,20 @@ app.get('/',(req,res,next)=> {
 )
 app.get('/api/cate', async (req, res) => { 
     try {
-        const request = new sql.Request();
-        const result = await request.query('SELECT Category FROM Products');
+        const cacheKey = 'categories';
+        if (cacheServer.has(cacheKey)) {
+            logger.logInfo("đã có trong cache không cần gọi đến database!");
+            return res.status(200).json(cacheServer.get(cacheKey));
+        }
+        else {
+        logger.logInfo("chưa có trong cache cần gọi đến database!");
+        const request = await db.request();
+        const result = await request.query('SELECT DISTINCT Category FROM Products');
         res.status(200).json(result.recordset);
+        cacheServer.set(cacheKey, result.recordset);
+        }
     } catch (err) {
+        logger.logError("Lỗi lấy danh mục:", err);
         res.status(500).send("lỗi");
     }
 })
