@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Màn hình Bếp</title>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+</head>
+<body>
+    <h1>Đơn hàng realtime</h1>
+    <h3 style="color: gray">Đang chờ tín hiệu từ Server...</h3>
+    
+    <div id="logs" style="border: 2px dashed #333; padding: 20px; height: 300px; overflow-y: scroll; background: #d28989;">
+        </div>
+
+    <script>
+        // 1. Kết nối tới Server Node.js của bạn (Cổng 5000)
+        const socket = io("http://localhost:5000");
+
+        // 2. Khi kết nối thành công
+        socket.on("connect", () => {
+            console.log("✅ Đã kết nối với Server!");
+            addLog("Đã kết nối tới hệ thống Bếp!");
+        });
+
+        // 3. QUAN TRỌNG: Lắng nghe sự kiện 'new_order' mà bạn vừa code trong API
+        socket.on("new_order", (data) => {
+            console.log("Nhận đơn:", data);
+            
+            // Hiện thông báo lên màn hình
+            addLog(`
+                <div style="background: #e6fffa; border: 1px solid #00b894; padding: 10px; margin-bottom: 5px; border-radius: 5px;">
+                    <h3 style="color: #00b894; margin: 0;">🔔 TING TING! CÓ ĐƠN MỚI!</h3>
+                    <p><b>Khách hàng:</b> ${data.customer}</p>
+                    <p><b>Tổng tiền:</b> ${data.total} VNĐ</p>
+                    <small>Thời gian: ${data.time}</small>
+                </div>
+            `);
+            
+            // Bật cửa sổ thông báo của trình duyệt
+            alert(`CÓ ĐƠN HÀNG MỚI!\nKhách: ${data.customer}`);
+        });
+
+        // Hàm hỗ trợ in chữ ra màn hình web
+        function addLog(htmlContent) {
+            const div = document.getElementById("logs");
+            div.innerHTML = htmlContent + div.innerHTML; // Tin mới nhất lên đầu
+        }
+    </script>
+</body>
+</html>

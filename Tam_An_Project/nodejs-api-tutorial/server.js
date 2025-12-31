@@ -1,4 +1,5 @@
 require('dotenv').config();
+const http = require('http');
 const express = require('express');
 const cors = require('cors');
 const db = require('./services/database');
@@ -11,10 +12,13 @@ const jwt = require('jsonwebtoken'); // 1. IMPORT JWT
 const cookieParser = require('cookie-parser'); // 2. IMPORT COOKIE PARSER
 const paymentController = require('./controllers/paymentController');
 const app = express();
+const server = http.createServer(app);
 const PORT = 5000;
 const logger = require('./services/LoggerService'); 
 const cacheServer = require('./services/cacheServer');
 const CountAmmountCus=require('./services/countammountcus');
+const socketservices = require('./services/socketServer');
+const { log } = require('console');
 app.use(cors({
     origin: 'http://localhost:5173', 
     credentials: true 
@@ -22,7 +26,7 @@ app.use(cors({
 
 app.use(express.json());
 app.use(cookieParser()); 
-
+socketservices.init(server);
 // --- CONFIG MAIL & CLOUDINARY ---
 const transporter = nodemailer.createTransport({
     service: 'gmail',
@@ -262,7 +266,7 @@ app.get('/api/products', async (req, res) => {
             request.input('category', category); // Dùng tham số để bảo mật
         }
 
-        const result = await request.query(query);
+        const result = await request.query(query);  
         res.json(result.recordset);
         CountAmmountCus.increment();
         logger.logInfo(`Số lượng khách truy cập: ${CountAmmountCus.getCount()}`);
@@ -478,7 +482,22 @@ app.post('/api/orders', async (req, res) => {
              cartReq.input('user_id', user_id);
              await cartReq.query`DELETE FROM Cart WHERE user_id = @user_id`;
         }
+         try 
+        {
+            const io = socketservices.getIO(); 
+            io.emit('new_order', { 
+                message: 'Đơn hàng mới đã được tạo.',
+                customer: customer_name, // Gửi tên khách
+                total: total_price,      // Gửi tổng tiền
+                time: new Date().toLocaleString() // Gửi thời gian
+            });
 
+            logger.logInfo("📢 Đã gửi thông báo Socket tới Bếp");
+
+        } catch (socketError) 
+        {
+            logger.logError(`Lỗi gửi Socket: ${socketError.message}`);
+        }
         res.status(201).json({ success: true, message: "Đặt hàng thành công!" });
     } catch (err) {
         console.error("Lỗi đặt hàng:", err);
@@ -627,6 +646,9 @@ app.post('/api/orders', async (req, res) => {
         }
 
         res.status(201).json({ success: true, message: "Đặt hàng thành công!" });
+        const io = socketservices.getIO();
+        io.emit('newOrder', { message: 'Đơn hàng mới đã được tạo.' });
+        logger.logInfo("Đã gửi sự kiện đơn hàng mới qua Socket.io");
 
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -740,6 +762,9 @@ app.get('/api/cate', async (req, res) => {
         res.status(500).send("lỗi");
     }
 })
-app.listen(PORT, () => {
+// app.listen(PORT, () => {
+//     console.log(`Server đang chạy tại http://localhost:${PORT}`);
+// });
+server.listen(PORT, () => {
     console.log(`Server đang chạy tại http://localhost:${PORT}`);
 });
